@@ -10,6 +10,21 @@ It has the same features as the Semester Desk page that was built in Claude:
 - **Assessments:** due dates and hurdles, with stages from *Not started* to *Marked*.
 - **Units & results:** weightings, marks, QUT grades (7 to 1, plus result codes like K, S and DA), final results, and estimates of your WAM and GPA.
 - **Import:** reads a timetable calendar file (.ics) or a Canvas course download right on your device.
+- **Study:** a supplement to your handwritten notes, with a *Next up* list of what to study next, short summaries, a printable formula sheet, an SI units reference, and a weak-areas tracker with a mistake log.
+
+### The Study tab
+
+Your handwritten notes stay your main record. The Study tab holds what's worth having on every device:
+
+- **Next up** ranks what to study next from this week's class work (and anything left over), assessments due in the next three weeks (by weighting and days left), topics you've rated *Not yet* or *Shaky*, and items you add yourself. Each item says why it's there. **Plan it** books a study session in the Week planner, and once a session is booked the item says when and drops down the list. The top few also show on the Overview.
+- **Summaries** are short notes per unit and week, written in Markdown with maths between dollar signs: `$v = u + at$` inline, or `$$\int_a^b f(x)\,dx$$` on its own line. Use **+ Note** on any Weekly work item or assessment to start one already filled in.
+- **Formula sheet** groups formulas by unit and topic, with what each symbol means and when to use it. **Add them** loads the EGD105 and EGD102 starter formulas (standard maths and physics, so check them against your lecture notes). **Print or save as PDF** gives a two-column sheet.
+- **Topics & weak areas** lists each unit's topics (from its Canvas download, or ones you add). Rate each one *Not yet*, *Shaky*, *OK* or *Solid*, and press **Practised today** after working on it. The **Mistake log** records what went wrong, why, and the fix; logging one lowers that topic's rating a level.
+- **SI units** has the base and derived units, prefixes and common constants, and you can add your own rows.
+
+An assessment's **Topics this covers** (in its edit window) tells Next up which weak topics to bring forward before it's due. The Desk fills this in from topics named in the assessment's notes, and a final exam covers every topic. Study data is saved, backed up and synced like everything else. Maths and Markdown need a one-time download from jsDelivr, after which they work offline.
+
+Import files (.json) can also carry `formulas` (`code`, `name`, `tex`, `where`, `when`, `topic`) and `notes` (`code`, `week`, `title`, `body`).
 
 ### Bringing in a unit from Canvas
 

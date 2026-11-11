@@ -204,6 +204,46 @@ textarea{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--
 .how li{max-width:65ch}
 .busy{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--muted)}
 @media (max-width:520px){.addline{grid-template-columns:1fr 1fr}}
+/* study tab */
+.subnav{display:flex;gap:6px;flex-wrap:wrap}
+.subnav button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;font-weight:700;font-size:13px;color:var(--muted)}
+.subnav button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.why{font-size:12px;color:var(--muted)}
+.md{font-size:14px;overflow-wrap:anywhere;min-width:0}
+.md p,.md ul,.md ol{margin:0 0 .5em}.md>:last-child{margin-bottom:0}.md ul,.md ol{padding-left:20px}
+.md h1,.md h2,.md h3{font-size:15px;margin:.4em 0 .3em}
+.md code{font-family:var(--mono);font-size:12.5px;background:var(--sunken);padding:1px 4px;border-radius:4px}
+.md pre{background:var(--sunken);padding:8px;border-radius:6px;overflow:auto}
+.md .katex-display,.fx .katex-display{margin:.3em 0;overflow-x:auto;overflow-y:hidden;padding:2px 0}
+.md table{border-collapse:collapse}.md td,.md th{border:1px solid var(--line);padding:3px 6px}
+.md a{color:var(--accent)}
+.md img{max-width:100%}
+.notes{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))}
+.note{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--cc,var(--accent));border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.formula{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;align-items:center;padding:8px 0;border-top:1px solid var(--line);break-inside:avoid}
+.formula .fx{grid-column:1/-1;overflow-x:auto;min-width:0}
+.lv{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.lv button{border:0;background:var(--surface);padding:4px 8px;font-size:12px;font-weight:700;color:var(--muted)}
+.lv button+button{border-left:1px solid var(--line)}
+.lv button[aria-pressed="true"]{background:color-mix(in srgb,var(--lc) 22%,var(--surface));color:var(--lc)}
+.sitable{width:100%;border-collapse:collapse;font-size:13px}
+.sitable th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:4px 6px}
+.sitable td{border-top:1px solid var(--line);padding:5px 6px;vertical-align:top}
+.sitable td.sym{font-family:var(--mono);font-weight:600;white-space:nowrap}
+.trow{grid-template-columns:minmax(0,1fr) auto}
+@media (max-width:760px){.trow{grid-template-columns:1fr}.trow .end{justify-content:flex-start}}
+.flist{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));column-gap:28px}
+.row.compact .end{justify-content:flex-start}
+.hint .katex,.why .katex{font-size:1.05em}
+.minibtn{border:0;background:none;padding:0;color:var(--accent);font-weight:700;font-size:12px}
+@media print{
+  body.print-sheet{background:#fff;color:#000;padding:0;font-size:11px}
+  body.print-sheet .wrap>*:not(main),body.print-sheet main>section:not(#view-study),body.print-sheet .noprint{display:none!important}
+  body.print-sheet .panel{border:0;padding:0 0 8px;break-inside:auto}
+  body.print-sheet #stBody{display:block;columns:2;column-gap:20px}
+  body.print-sheet .formula{padding:4px 0}
+  body.print-sheet .flist{display:block}
+}
 </style>
 </head>
 <body>
@@ -242,6 +282,7 @@ textarea{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--
     <button role="tab" id="tab-overview" aria-selected="true" data-view="overview" type="button">Overview</button>
     <button role="tab" id="tab-planner" aria-selected="false" data-view="planner" type="button">Week planner</button>
     <button role="tab" id="tab-weekly" aria-selected="false" data-view="weekly" type="button">Weekly work</button>
+    <button role="tab" id="tab-study" aria-selected="false" data-view="study" type="button">Study</button>
     <button role="tab" id="tab-deadlines" aria-selected="false" data-view="deadlines" type="button">Assessments</button>
     <button role="tab" id="tab-courses" aria-selected="false" data-view="courses" type="button">Units &amp; results</button>
     <button role="tab" id="tab-import" aria-selected="false" data-view="import" type="button">Import</button>
@@ -251,6 +292,7 @@ textarea{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--
     <section id="view-overview" class="grid"></section>
     <section id="view-planner" hidden></section>
     <section id="view-weekly" hidden></section>
+    <section id="view-study" hidden></section>
     <section id="view-deadlines" hidden></section>
     <section id="view-courses" class="grid" hidden></section>
     <section id="view-import" class="grid" hidden></section>
@@ -260,6 +302,7 @@ textarea{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--
 
 <dialog id="dlg"><form id="dlgForm" method="dialog"></form></dialog>
 
+<script src="study-data.js"></script>
 <script>
 (() => {
 const LOC='en-AU';
@@ -283,7 +326,7 @@ function unitResult(c){
   const p=unitMark(c).pct,B=band(p);
   return B?{code:B[1],name:B[2],final:false,g7:B[3],g4:B[4],pct:p}:null;
 }
-const VIEWS=['overview','planner','weekly','deadlines','courses','import'];
+const VIEWS=['overview','planner','weekly','study','deadlines','courses','import'];
 const STORE_KEY='sd-state3';
 
 let state=blankState();
@@ -295,13 +338,14 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const uid=()=>Math.random().toString(36).slice(2,9);
 const isDone=t=>t.stage==='Submitted'||t.stage==='Marked';
 
-function blankState(){return {v:3,term:{name:'Semester 2, 2026',start:'2026-07-27',breakStart:'2026-09-28',breakEnd:'2026-10-04',swotStart:'2026-10-26',examStart:'2026-11-02',end:'2026-11-20',census:'2026-08-31',gpaScale:7},courses:[],tasks:[],classwork:[],sessions:[],example:false};}
+function blankState(){return {v:3,term:{name:'Semester 2, 2026',start:'2026-07-27',breakStart:'2026-09-28',breakEnd:'2026-10-04',swotStart:'2026-10-26',examStart:'2026-11-02',end:'2026-11-20',census:'2026-08-31',gpaScale:7},courses:[],tasks:[],classwork:[],sessions:[],study:blankStudy(),example:false};}
 function normalise(s){
   if(!s||!(s.v>=2)) return blankState();
   const b=blankState();
   s.term=Object.assign(b.term,s.term||{});
   for(const k of ['courses','tasks','classwork','sessions']) s[k]=Array.isArray(s[k])?s[k]:[];
   s.tasks.forEach(t=>{ if(!STAGES.includes(t.stage)) t.stage=t.score!=null?'Marked':t.done?'Submitted':'Not started'; t.notes=t.notes||''; });
+  s.study=normStudy(s.study);
   s.v=3; return s;
 }
 
@@ -386,9 +430,9 @@ function taskRow(t,{stage=true}={}){
   return `<div class="row${done?' isdone':''}" style="--cc:var(--${c?.color||'accent'})">
     <button class="check" type="button" data-act="toggle" data-id="${t.id}" aria-pressed="${done}" aria-label="Mark ${esc(t.title)} ${done?'not submitted':'submitted'}">${done?tick:''}</button>
     <div class="t"><span class="title">${esc(t.title)}</span>
-      <span class="meta">${chip(c)}<span>${esc(t.type)}</span><span>·</span><span class="num">${fmt(t.due,{weekday:'short',day:'numeric',month:'short'})}</span>${score?'<span>·</span>'+score:''}${isHurdle(t)?'<span class="pill hurdle">Hurdle</span>':''}${ns?`<span>· ${ns} study session${ns>1?'s':''}</span>`:''}</span>
+      <span class="meta">${chip(c)}<span>${esc(t.type)}</span><span>·</span><span class="num">${fmt(t.due,{weekday:'short',day:'numeric',month:'short'})}</span>${score?'<span>·</span>'+score:''}${isHurdle(t)?'<span class="pill hurdle">Hurdle</span>':''}${ns?`<span>· ${ns} study session${ns>1?'s':''}</span>`:''}${(()=>{const cov=coveredBy(t),weak=cov.filter(tp=>{const l=topicState(t.courseId,tp).level;return l===1||l===2;}).length,nn=state.study.notes.filter(n=>(n.taskIds||[]).includes(t.id)).length;return (cov.length&&!done?`<span>· ${cov.length} topic${cov.length>1?'s':''}${weak?`, <b style="color:var(--warn)">${weak} weak</b>`:''}</span>`:'')+(nn?`<span>· ${nn} summar${nn>1?'ies':'y'}</span>`:'');})()}</span>
       ${t.notes?`<span class="meta">${esc(t.notes)}</span>`:''}</div>
-    <div class="end">${stage?`<span class="stage">${stageSel(t)}${stageBar(t)}</span>`:''}<span class="pill ${di.cls}">${di.txt}</span><button class="btn ghost" type="button" data-act="editTask" data-id="${t.id}">Edit</button></div>
+    <div class="end">${stage?`<span class="stage">${stageSel(t)}${stageBar(t)}</span>`:''}<span class="pill ${di.cls}">${di.txt}</span><button class="btn ghost" type="button" data-act="noteTask" data-id="${t.id}" title="Write a short summary for this">+ Note</button><button class="btn ghost" type="button" data-act="editTask" data-id="${t.id}">Edit</button></div>
   </div>`;
 }
 
@@ -453,6 +497,8 @@ function renderOverview(){
       ${later.length?`<div class="label" style="padding-top:6px">Later</div><div class="list">${later.map(t=>taskRow(t)).join('')}</div>`:''}
     </div>
     <div class="grid" style="align-content:start">
+      <div class="panel"><div class="panel-head"><h2>Next up</h2><button class="btn ghost" type="button" data-act="studyNext">Study →</button></div>
+        <div class="list">${nextUp().slice(0,4).map(x=>nextRow(x,true)).join('')||'<p class="empty">Nothing waiting.</p>'}</div></div>
       <div class="panel"><div class="panel-head"><h2>Today</h2><button class="btn ghost" type="button" data-goto="planner">Week planner →</button></div>
         <div class="list">${today.map(x=>x.kind==='class'
           ?`<div class="row" style="grid-template-columns:auto 1fr"><span class="num" style="font-size:13px">${x.start}</span><div class="t"><span class="title">${esc(x.label)} · ${esc(x.c.name)}</span><span class="meta">${chip(x.c)}<span>${esc(x.room||'')}</span><span class="num">until ${x.end}</span></span></div></div>`
@@ -507,7 +553,7 @@ function cwRow(x){
   return `<div class="row${x.done?' isdone':''}" style="grid-template-columns:auto 1fr auto">
     <button class="check" type="button" data-act="cwToggle" data-id="${x.id}" aria-pressed="${!!x.done}" aria-label="Mark ${esc(x.title)} ${x.done?'not done':'done'}">${x.done?tick:''}</button>
     <div class="t"><span class="title">${x.url?`<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a>`:esc(x.title)}</span><span class="meta">${chip(c)}<span class="kind">${esc(x.kind)}</span></span></div>
-    <button class="btn ghost" type="button" data-act="cwDel" data-id="${x.id}" aria-label="Remove ${esc(x.title)}">✕</button></div>`;
+    <span class="end"><button class="btn ghost" type="button" data-act="noteCw" data-id="${x.id}" title="Write a short summary for this">+ Note${(n=>n?` (${n})`:'')(state.study.notes.filter(n=>n.cwId===x.id).length)}</button><button class="btn ghost" type="button" data-act="cwDel" data-id="${x.id}" aria-label="Remove ${esc(x.title)}">✕</button></span></div>`;
 }
 function renderWeekly(){
   const wkIso=iso(selWeek), items=state.classwork.filter(x=>x.weekOf===wkIso);
@@ -582,7 +628,7 @@ function renderCourses(){
       ${(c.content||[]).length?`<details><summary class="label" style="cursor:pointer">Unit content · ${c.content.length} topics</summary><ul style="margin:6px 0 0;padding-left:18px;font-size:13px;display:flex;flex-direction:column;gap:3px">${c.content.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></details>`:''}
       ${(c.links||[]).length?`<div class="kv">${c.links.map(l=>`<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title)}</a>`).join('')}</div>`:''}
       <table class="wtable"><tbody>${g.rows.map(r=>`<tr><td>${esc(r.name)}${r.hurdle?' <span class="pill hurdle">Hurdle</span>':''}</td><td>${r.weight}%</td><td style="width:64px">${r.pct!=null?r.pct.toFixed(1):'—'}</td></tr>`).join('')}</tbody></table>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-act="editCourse" data-id="${c.id}">Edit unit</button><button class="btn" type="button" data-act="addTaskFor" data-id="${c.id}">Add assessment</button></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-act="editCourse" data-id="${c.id}">Edit unit</button><button class="btn" type="button" data-act="addTaskFor" data-id="${c.id}">Add assessment</button><button class="btn" type="button" data-act="studyUnit" data-id="${c.id}">Study topics${(n=>n?` · ${n} weak`:'')(weakTopics(c.id).length)}</button></div>
     </div>`;
   }).join('');
   el.innerHTML=`<div class="bands"><span class="label">Grade bands</span>${BANDS.map(([min,k,n,g7,g4,max])=>`<span><b>${k}</b> ${n} <span class="num">${min?`${min}–${max}`:'<25'}%</span>${state.term.gpaScale===4?` <span class="num">(${g4})</span>`:''}</span>`).join('')}<span>Grades 3, 2 and 1 are fails. K (Withdrawn - Failure) counts as 1 in your GPA; S, U, E, A, SA, DA and T are left out. GPA on the ${scaleTxt} scale; change it under Semester dates.</span></div>
@@ -619,7 +665,7 @@ function renderImport(){
           <li><b>Unit outlines:</b> copy the assessment table and weekly schedule out of the PDF and paste it. Claude picks out assessments, weightings, hurdles, due dates and weekly readings (needs an API key in Settings).</li>
           <li><b>Screenshots:</b> a photo of your timetable grid, LMS assessment page or a results page works too.</li>
           <li><b>Canvas course download:</b> in the downloaded course folder, open <code>viewer</code> and choose <code>course-data.js</code>. Assessments, due dates, weightings, weekly videos and worksheets are read on this device, no API key needed. Download it again each week as new content is released; only new items are offered.</li>
-          <li><b>Files from Claude:</b> a <code>.json</code> import file Claude prepares for you in chat (for example from a unit’s schedule). Read on this device, no API key needed.</li>
+          <li><b>Files from Claude:</b> a <code>.json</code> import file Claude prepares for you in chat (for example from a unit’s schedule, or a formula pack for the Study tab). Read on this device, no API key needed.</li>
           <li><b>Progress and marks:</b> paste a released-marks page or just type notes like “COMP2123 A2 got 32/40, essay 2 is in drafting”.</li>
         </ol>
         <p class="hint" style="margin:0">Nothing is added until you review it and press Add. Reading text and images sends them to Claude using the API key in Settings. Calendar (.ics) files are read on this device and need no key.</p>
@@ -712,7 +758,7 @@ let imCtl=null;
 // A Semester Desk import file (units/classes/assessments/classwork), from a file or pasted text.
 function asImport(text){
   const t=String(text||'').trim(); if(!t.startsWith('{')) return null;
-  try{const j=JSON.parse(t);return j&&['units','classes','assessments','classwork'].some(k=>Array.isArray(j[k]))?j:null;}catch{return null;}
+  try{const j=JSON.parse(t);return j&&['units','classes','assessments','classwork','formulas','notes'].some(k=>Array.isArray(j[k]))?j:null;}catch{return null;}
 }
 /* ---------- Canvas course download (viewer/course-data.js) ---------- */
 // Canvas "Download course content" saves a folder whose viewer/course-data.js holds every module, page and assignment.
@@ -826,7 +872,7 @@ async function readImport(){
   const imgs=pendingFiles.filter(f=>f.type.startsWith('image/'));
   const others=pendingFiles.filter(f=>!ics.includes(f)&&!imgs.includes(f));
   if(!text&&!pendingFiles.length){out.textContent='Choose a file or paste some text first.';return;}
-  let raw={units:[],classes:[],assessments:[],classwork:[],sessions:[]};
+  let raw={units:[],classes:[],assessments:[],classwork:[],sessions:[],formulas:[],notes:[]};
   const merge=r=>{for(const k in raw) raw[k].push(...(r[k]||[]));};
   let local=ics.length;
   try{
@@ -877,7 +923,7 @@ function dueFromWeek(a,u){
   return iso(addDays(mon,off));
 }
 function buildProposal(raw,source='import'){
-  const p={source,units:[],classes:[],assessments:[],classwork:[],sessions:[],count:0};
+  const p={source,units:[],classes:[],assessments:[],classwork:[],sessions:[],formulas:[],notes:[],count:0};
   const codes=new Map();
   const noteCode=(code,info={})=>{code=String(code||'').toUpperCase().replace(/\s/g,'');if(!code)return '';if(!codes.has(code))codes.set(code,{code,name:null,credits:null,coordinator:null,content:null,links:null});const u=codes.get(code);if(Array.isArray(info.links)&&info.links.length&&!u.links)u.links=info.links.filter(l=>l&&/^https?:\/\//.test(l.url||'')).map(l=>({title:String(l.title||l.url),url:l.url}));if(Array.isArray(info.content)&&info.content.length&&!u.content)u.content=info.content.map(String).filter(Boolean);for(const k of ['name','credits','coordinator'])if(info[k]!=null&&u[k]==null)u[k]=info[k];return code;};
   (raw.units||[]).forEach(u=>noteCode(u.code,u));
@@ -900,8 +946,15 @@ function buildProposal(raw,source='import'){
   (raw.sessions||[]).forEach(s=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(s.date||'')||!s.start||!s.end)return;const code=noteCode(s.code);
     const u=findUnit(code), t=u&&s.assessmentTitle?state.tasks.find(t=>t.courseId===u.id&&t.title.toLowerCase()===String(s.assessmentTitle).toLowerCase()):null;
     p.sessions.push({on:true,code,date:s.date,start:s.start.padStart(5,'0'),end:s.end.padStart(5,'0'),title:s.title||t?.title||'Study',taskId:t?.id||null});});
+  // Study material: formulas (skipping ones you already have) and short summaries.
+  (raw.formulas||[]).forEach(f=>{const code=noteCode(f.code);if(!f.name||!f.tex)return;const u=findUnit(code);
+    if(u&&state.study.formulas.some(x=>x.courseId===u.id&&normT(x.name)===normT(f.name)))return;
+    p.formulas.push({on:true,code,name:String(f.name),tex:String(f.tex),where:String(f.where||''),when:String(f.when||''),topic:String(f.topic||'')});});
+  (raw.notes||[]).forEach(n=>{const code=noteCode(n.code);if(!n.title&&!n.body)return;const u=findUnit(code);
+    if(u&&state.study.notes.some(x=>x.courseId===u.id&&x.title===n.title))return;
+    p.notes.push({on:true,code,week:Number.isInteger(+n.week)&&n.week!=null?+n.week:null,title:String(n.title||''),body:String(n.body||''),topics:Array.isArray(n.topics)?n.topics.map(String):[]});});
   codes.forEach(u=>{const ex=findUnit(u.code);if(!ex)p.units.push({on:true,...u,name:u.name||u.code});else if((u.name&&ex.name===ex.code)||(u.credits&&!ex.credits)||(u.coordinator&&!ex.coordinator)||(u.content&&JSON.stringify(u.content)!==JSON.stringify(ex.content||[]))||(u.links&&u.links.some(l=>!(ex.links||[]).some(x=>x.url===l.url))))p.units.push({on:true,existing:ex.id,...u});});
-  p.count=p.units.length+p.classes.length+p.assessments.length+p.classwork.length+p.sessions.length;
+  p.count=p.units.length+p.classes.length+p.assessments.length+p.classwork.length+p.sessions.length+p.formulas.length+p.notes.length;
   return p;
 }
 function renderProposal(where='#imPreview'){
@@ -914,6 +967,8 @@ function renderProposal(where='#imPreview'){
     ${sec('Classes',P.classes,(c,i)=>row('classes',i,c.on,`<b>${esc(c.code)}</b> ${esc(c.type)} · ${DAYS[c.day]} ${c.start}–${c.end}`,esc(c.room),'New'))}
     ${sec('Assessments',P.assessments,(a,i)=>row('assessments',i,a.on,`<b>${esc(a.code)}</b> ${esc(a.title)}`,[a.type,a.due?fmt(a.due,{weekday:'short',day:'numeric',month:'short'}):'',a.weight!=null?a.weight+'%':'',a.hurdle?'hurdle':'',a.mark!=null?`mark ${a.mark}/${a.outOf??'?'}`:'',a.stage||'',a.notes||''].filter(Boolean).map(esc).join(' · '),a.existing?'Update':'New'))}
     ${sec('Weekly class work',P.classwork,(w,i)=>row('classwork',i,w.on,`<b>${esc(w.code)}</b> Week ${w.week}: ${esc(w.title)}`,esc(w.kind),'New'))}
+    ${sec('Formulas',P.formulas,(f,i)=>row('formulas',i,f.on,`<b>${esc(f.code)}</b> ${esc(f.name)}`,esc(f.topic),'New'))}
+    ${sec('Summaries',P.notes,(n,i)=>row('notes',i,n.on,`<b>${esc(n.code)}</b> ${n.week?'Week '+n.week+': ':''}${esc(n.title)}`,'','New'))}
     ${sec('Study sessions',P.sessions,(s,i)=>row('sessions',i,s.on,`<b>${fmt(s.date,{weekday:'short',day:'numeric',month:'short'})} ${s.start}–${s.end}</b> ${esc(s.title)}`,esc(s.code),'New'))}
     <div class="actions"><button class="btn" type="button" id="pvCancel">Discard</button><div class="r"><button class="btn primary" type="button" id="pvApply">Add selected</button></div></div></div>`;
   el.querySelectorAll('[data-pi]').forEach(cb=>cb.onchange=()=>{const [s,i]=cb.dataset.pi.split(':');P[s][+i].on=cb.checked;});
@@ -940,6 +995,8 @@ function applyProposal(P){
     if(x.notes) t.notes=x.notes;
     n++;});
   P.classwork.filter(x=>x.on).forEach(x=>{const u=unitFor(x.code);state.classwork.push({id:uid(),courseId:u?.id||'',weekOf:x.weekOf,title:x.title,kind:x.kind,done:false,...(x.url?{url:x.url}:{})});n++;});
+  P.formulas.filter(x=>x.on).forEach(x=>{const u=unitFor(x.code);if(!u)return;state.study.formulas.push({id:uid(),courseId:u.id,name:x.name,tex:x.tex,where:x.where,when:x.when,topic:matchTopic(u,x.topic)||''});n++;});
+  P.notes.filter(x=>x.on).forEach(x=>{const u=unitFor(x.code);if(!u)return;state.study.notes.push({id:uid(),courseId:u.id,week:x.week,title:x.title||x.body.split('\n')[0].slice(0,60),body:x.body,topics:x.topics.map(t=>matchTopic(u,t)).filter(Boolean),taskIds:[],pinned:false,updated:todayIso()});n++;});
   P.sessions.filter(x=>x.on).forEach(x=>{const u=findUnit(x.code);state.sessions.push({id:uid(),courseId:u?.id||'',taskId:x.taskId,date:x.date,start:x.start,end:x.end,title:x.title,done:false});n++;});
   return n;
 }
@@ -974,10 +1031,361 @@ Suggest 5 to 9 focused sessions of 1 to 2.5 hours between 08:00 and 21:00, with 
   finally{btn.disabled=false;}
 }
 
+/* ---------- study: notes, formula sheet, SI units, topics & weak areas, next up ---------- */
+const STUDY_DATA=window.SD_STUDY_DATA||{units:[],packs:{}};
+const LEVELS=[{n:'Not rated',c:'muted'},{n:'Not yet',c:'bad'},{n:'Shaky',c:'warn'},{n:'OK',c:'accent'},{n:'Solid',c:'ok'}];
+const WHY=['Didn’t understand the concept','Careless slip','Misread the question','Units or significant figures','Ran out of time','Other'];
+const STUDY_SECS=[['next','Next up'],['notes','Summaries'],['formulas','Formula sheet'],['topics','Topics & weak areas'],['units','SI units']];
+function blankStudy(){return {notes:[],formulas:[],units:[],topics:{},extraTopics:[],covers:{},mistakes:[],queue:[],snooze:{},packs:[]};}
+function normStudy(x){
+  const b=blankStudy(); x=x&&typeof x==='object'?x:{};
+  for(const k of ['notes','formulas','units','extraTopics','mistakes','queue','packs']) b[k]=Array.isArray(x[k])?x[k]:[];
+  for(const k of ['topics','covers','snooze']) b[k]=x[k]&&typeof x[k]==='object'&&!Array.isArray(x[k])?x[k]:{};
+  return b;
+}
+const SD=()=>state.study;
+const todayIso=()=>iso(today0());
+const normT=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+const topicKey=(cid,t)=>cid+'|'+t;
+function topicsFor(c){
+  if(!c) return [];
+  const own=(c.content||[]).map(String);
+  return [...own,...SD().extraTopics.filter(x=>x.courseId===c.id&&!own.includes(x.title)).map(x=>x.title)];
+}
+function matchTopic(c,label){const n=normT(label);if(!n)return null;return topicsFor(c).find(t=>{const m=normT(t);return m===n||m.startsWith(n)||n.startsWith(m);})||null;}
+const topicState=(cid,t)=>SD().topics[topicKey(cid,t)]||{level:0,last:null};
+function setTopic(cid,t,patch){SD().topics[topicKey(cid,t)]={...topicState(cid,t),...patch};}
+const shortT=(t,n=70)=>t.length>n?t.slice(0,n-1).replace(/[\s,(]+\S*$/,'')+'…':t;
+/* The topics an assessment covers: the ones you ticked, otherwise topics named in its title or notes (a final exam covers everything). */
+function coveredBy(t){
+  const c=course(t.courseId); if(!c) return [];
+  const all=topicsFor(c), set=SD().covers[t.id];
+  if(Array.isArray(set)) return set.filter(x=>all.includes(x));
+  if(t.type==='Final exam') return all;
+  const hay=normT(t.title+' '+(t.notes||''));
+  return all.filter(tp=>{const n=normT(tp).slice(0,30);return n.length>=8&&hay.includes(n);});
+}
+function recentMistakes(cid,t,days=14){const since=iso(addDays(today0(),-days));return SD().mistakes.filter(m=>m.courseId===cid&&m.topic===t&&(m.date||'')>=since).length;}
+function weakTopics(cid){
+  const out=[];
+  state.courses.filter(c=>!cid||c.id===cid).forEach(c=>topicsFor(c).forEach(t=>{const s=topicState(c.id,t),rm=recentMistakes(c.id,t);if(s.level===1||s.level===2||rm)out.push({c,t,s,rm});}));
+  return out.sort((a,b)=>(a.s.level||3)-(b.s.level||3)||b.rm-a.rm);
+}
+function teachWeeks(){return semesterWeeks().filter(w=>w.kind==='teach');}
+function curTeachWeek(){const ws=teachWeeks(),t0=today0();if(!ws.length)return null;const w=weekAt(t0);if(w&&w.teach)return w.teach;const past=ws.filter(w=>w.ws<=t0);return past.length?past[past.length-1].teach:1;}
+const teachOf=d=>{if(!d)return null;const w=weekAt(D(d));if(w&&w.teach)return w.teach;const past=teachWeeks().filter(x=>x.ws<=D(d));return past.length?past[past.length-1].teach:null;};
+
+/* Markdown and maths: KaTeX, marked and DOMPurify load once from jsDelivr at fixed versions; the service worker keeps them for offline use. */
+const LIBS={css:'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css',js:['https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js','https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js','https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js']};
+let libsP=null, libsReady=false, libsFailed=0;
+function loadLibs(){
+  if(libsP) return libsP;
+  if(Date.now()-libsFailed<60e3) return Promise.resolve(); // offline and not cached yet: plain text until it can load
+  document.querySelectorAll('script[data-studylib],link[data-studylib]').forEach(n=>n.remove());
+  const js=u=>new Promise((res,rej)=>{const s=document.createElement('script');s.src=u;s.dataset.studylib='';s.onload=res;s.onerror=rej;document.head.append(s);});
+  const l=document.createElement('link');l.rel='stylesheet';l.href=LIBS.css;l.dataset.studylib='';document.head.append(l);
+  libsP=Promise.all(LIBS.js.map(js)).then(()=>{
+    libsReady=true;
+    window.DOMPurify.addHook('afterSanitizeAttributes',n=>{if(n.tagName==='A'){n.setAttribute('target','_blank');n.setAttribute('rel','noopener');}});
+    if(!dlg.open&&(view==='study'||view==='overview')) render();
+  }).catch(()=>{libsP=null;libsFailed=Date.now();});
+  return libsP;
+}
+function tex(t,display){
+  if(!libsReady) return `<code>${esc(t)}</code>`;
+  try{return window.katex.renderToString(t,{displayMode:!!display,throwOnError:false,output:'html'});}catch{return `<code>${esc(t)}</code>`;}
+}
+function md(text){
+  text=String(text||'');
+  if(!libsReady) return `<p>${esc(text).replace(/\n/g,'<br>')}</p>`;
+  const maths=[];
+  const s=text.replace(/\$\$([\s\S]+?)\$\$/g,(_,t)=>{maths.push([t,true]);return `@@M${maths.length-1}@@`;})
+    .replace(/(^|[^\\$])\$([^\n$]+?)\$/g,(_,p,t)=>{maths.push([t,false]);return `${p}@@M${maths.length-1}@@`;});
+  const html=window.DOMPurify.sanitize(window.marked.parse(s,{breaks:true,gfm:true}));
+  return html.replace(/@@M(\d+)@@/g,(_,i)=>tex(...maths[+i]));
+}
+
+/* ---------- next up ---------- */
+const snoozed=k=>(SD().snooze[k]||'')>todayIso();
+function nextUp(cid){
+  const t0=today0(), thisMon=iso(monday(t0)), out=[], inUnit=x=>!cid||x===cid;
+  // Class work from this week, plus anything left over from earlier weeks.
+  const cw=state.classwork.filter(x=>!x.done&&x.weekOf<=thisMon&&inUnit(x.courseId)).map(x=>{
+    const late=Math.round(daysBetween(D(x.weekOf),D(thisMon))/7), wk=teachOf(x.weekOf);
+    return {key:'cw:'+x.id,kind:'cw',id:x.id,c:course(x.courseId),title:x.title,score:40+15*Math.min(late,3),
+      why:late?`Class work from week ${wk??'?'}, ${late} week${late>1?'s':''} behind`:'This week’s class work'};
+  }).sort((a,b)=>b.score-a.score).slice(0,4);
+  out.push(...cw);
+  // Assessments due in the next three weeks.
+  state.tasks.filter(t=>!isDone(t)&&inUnit(t.courseId)).forEach(t=>{
+    const d=daysBetween(t0,D(t.due)); if(d>21||d<-7) return;
+    const c=course(t.courseId), g=c?.grading?.find(g=>g.name===t.category), w=g?+g.weight:null;
+    const weak=coveredBy(t).filter(tp=>{const l=topicState(c.id,tp).level;return l===1||l===2;});
+    out.push({key:'task:'+t.id,kind:'task',id:t.id,c,title:t.title,
+      score:30+(w??5)*1.5+Math.max(0,21-Math.max(d,0))*3+(t.stage==='Not started'&&d<=10?15:0)+weak.length*4,
+      why:[d<0?`${-d} day${d<-1?'s':''} overdue`:d===0?'Due today':d===1?'Due tomorrow':`Due in ${d} days`,w!=null?`worth ${w}%`:'',t.stage,weak.length?`covers ${weak.length>1?weak.length+' topics':'a topic'} you rated weak`:''].filter(Boolean).join(' · ')});
+  });
+  // Weak topics, sooner when an assessment on them is close.
+  const soon=state.tasks.filter(t=>!isDone(t)&&daysBetween(t0,D(t.due))>=0&&daysBetween(t0,D(t.due))<=21);
+  weakTopics(cid).forEach(({c,t,s,rm})=>{
+    const by=soon.filter(x=>x.courseId===c.id&&coveredBy(x).includes(t)).sort((a,b)=>a.due.localeCompare(b.due))[0];
+    const recent=s.last&&daysBetween(D(s.last),t0)<=2;
+    out.push({key:'topic:'+topicKey(c.id,t),kind:'topic',c,topic:t,title:shortT(t),
+      score:(s.level===1?45:s.level===2?32:20)+(by?20:0)+Math.min(rm,3)*5-(recent?30:0),
+      why:[s.level?`You rated it ${LEVELS[s.level].n}`:'',rm?`${rm} recent mistake${rm>1?'s':''}`:'',by?`${by.title} in ${daysBetween(t0,D(by.due))} days`:'',s.last?`last practised ${fmt(s.last)}`:'not practised yet'].filter(Boolean).join(' · ')});
+  });
+  SD().queue.filter(q=>!q.done&&inUnit(q.courseId)).forEach(q=>out.push({key:'q:'+q.id,kind:'q',id:q.id,c:course(q.courseId),title:q.title,score:50,why:'Added by you'}));
+  // Already booked a study session for it? Say when, and rank it lower: it's handled.
+  const upcoming=state.sessions.filter(s=>!s.done&&s.date>=iso(t0)).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
+  out.forEach(x=>{const s=upcoming.find(s=>x.kind==='task'?s.taskId===x.id:normT(s.title).includes(normT(x.kind==='topic'?shortT(x.topic,50):x.title).slice(0,24)));
+    if(s){x.planned=s;x.score-=25;x.why+=` · session planned ${fmt(s.date,{weekday:'short',day:'numeric',month:'short'})} ${s.start}`;}});
+  return out.filter(x=>!snoozed(x.key)).sort((a,b)=>b.score-a.score);
+}
+function nextRow(x,compact){
+  const btn=(act,label,extra='')=>`<button class="btn${act==='nxSnooze'?' ghost':''}" type="button" data-act="${act}" data-key="${esc(x.key)}"${extra}>${label}</button>`;
+  const main=x.kind==='cw'?btn('nxDone','Done'):x.kind==='task'?btn('nxOpen','Open'):x.kind==='topic'?btn('nxPractised','Practised'):btn('nxDone','Done');
+  return `<div class="row${compact?' compact':''}" style="--cc:var(--${x.c?.color||'accent'});grid-template-columns:${compact?'1fr':'1fr auto'}">
+    <div class="t"><span class="title">${esc(x.title)}</span><span class="meta">${chip(x.c)}<span class="kind">${{cw:'Class work',task:'Assessment',topic:'Weak topic',q:'Your list'}[x.kind]}</span></span><span class="why">${esc(x.why)}</span></div>
+    <div class="end">${main}${btn('nxPlan','Plan it','title="Book a study session for this"')}${compact?'':btn('nxSnooze','Snooze','title="Hide until tomorrow"')}</div></div>`;
+}
+function snooze(key){const t=todayIso();for(const k in SD().snooze)if(SD().snooze[k]<=t)delete SD().snooze[k];SD().snooze[key]=iso(addDays(today0(),1));}
+function nextAction(a,key){
+  const x=nextUp().find(x=>x.key===key); if(!x) return;
+  if(a==='nxSnooze'){snooze(key);commit();return;}
+  if(a==='nxDone'){if(x.kind==='cw'){const c=state.classwork.find(c=>c.id===x.id);if(c)c.done=true;}else{const q=SD().queue.find(q=>q.id===x.id);if(q)q.done=true;SD().queue=SD().queue.filter(q=>!q.done);}commit();return;}
+  if(a==='nxPractised'){setTopic(x.c.id,x.topic,{last:todayIso()});commit();return;}
+  if(a==='nxOpen'){taskDialog(state.tasks.find(t=>t.id===x.id));return;}
+  if(a==='nxPlan'){if(x.kind==='task')sessionDialog(null,state.tasks.find(t=>t.id===x.id));else sessionDialog(null,null,{courseId:x.c?.id||'',title:x.kind==='topic'?'Practise: '+shortT(x.topic,50):x.title});}
+}
+
+/* ---------- study view ---------- */
+let study={sec:'next',unit:'all',q:'',week:'all'};
+try{study=Object.assign(study,JSON.parse(localStorage.getItem('sd-study')||'{}'),{q:''});}catch{}
+const keepStudy=()=>{try{localStorage.setItem('sd-study',JSON.stringify({sec:study.sec,unit:study.unit}));}catch{}};
+const unitSel=()=>study.unit!=='all'&&course(study.unit)?study.unit:null;
+const hasQ=(...xs)=>!study.q||xs.some(x=>String(x||'').toLowerCase().includes(study.q));
+function renderStudy(){
+  loadLibs();
+  const el=$('#view-study');
+  if(!el.dataset.built){
+    el.dataset.built='1';
+    el.innerHTML=`<div class="panel noprint"><div class="panel-head"><div class="subnav" role="group" aria-label="Study sections">${STUDY_SECS.map(([k,n])=>`<button type="button" data-sec="${k}">${n}</button>`).join('')}</div>
+      <div class="filters"><select id="stUnit" aria-label="Unit"></select><input id="stQ" type="search" placeholder="Search notes, formulas, units" aria-label="Search study notes"></div></div></div>
+      <div id="stBody" class="grid"></div>`;
+    el.querySelectorAll('[data-sec]').forEach(b=>b.onclick=()=>{study.sec=b.dataset.sec;keepStudy();renderStudy();});
+    el.querySelector('#stUnit').onchange=e=>{study.unit=e.target.value;keepStudy();renderStudy();};
+    el.querySelector('#stQ').oninput=e=>{study.q=e.target.value.trim().toLowerCase();renderStudyBody();};
+  }
+  el.querySelectorAll('[data-sec]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.sec===study.sec));
+  const su=el.querySelector('#stUnit');
+  su.innerHTML='<option value="all">All units</option>'+state.courses.map(c=>`<option value="${c.id}">${esc(c.code)}</option>`).join('');
+  su.value=unitSel()||'all';
+  renderStudyBody();
+}
+function renderStudyBody(){
+  const b=$('#stBody'); if(!b) return;
+  b.innerHTML=({next:studyNext,notes:studyNotes,formulas:studyFormulas,topics:studyTopics,units:studyUnits})[study.sec]?.()||studyNext();
+  const qf=$('#qForm'); if(qf) qf.onsubmit=e=>{e.preventDefault();const t=$('#q-title').value.trim();if(!t)return;SD().queue.push({id:uid(),courseId:$('#q-course').value,title:t,done:false,added:todayIso()});commit();setTimeout(()=>$('#q-title')?.focus(),0);};
+  const uf=$('#uForm'); if(uf) uf.onsubmit=e=>{e.preventDefault();const g=k=>$('#u-'+k).value.trim();if(!g('quantity')||!g('sym'))return;SD().units.push({id:uid(),quantity:g('quantity'),sym:g('sym'),base:g('base'),note:g('note')});commit();};
+  b.querySelectorAll('form[data-addtopic]').forEach(f=>f.onsubmit=e=>{e.preventDefault();const i=f.querySelector('input'),t=i.value.trim(),c=course(f.dataset.addtopic);if(!t||!c||topicsFor(c).includes(t))return;SD().extraTopics.push({courseId:c.id,title:t});commit();});
+}
+const unitOpts=(sel,blank)=>(blank?`<option value="">${blank}</option>`:'')+state.courses.map(c=>`<option value="${c.id}"${c.id===sel?' selected':''}>${esc(c.code)}</option>`).join('');
+function studyNext(){
+  const cid=unitSel(), items=nextUp(cid);
+  return `<div class="panel"><div class="panel-head"><h2>Next up</h2><span class="hint">Rebuilt each time from your class work, assessments, weak topics and your own list.</span></div>
+    <div class="list">${items.slice(0,8).map(x=>nextRow(x)).join('')||'<p class="empty">Nothing waiting. Rate your topics under Topics &amp; weak areas so the Desk knows what to bring up.</p>'}</div>
+    ${items.length>8?`<p class="hint" style="margin:0">${items.length-8} more after these.</p>`:''}
+    <form class="addline" id="qForm" style="grid-template-columns:auto 1fr auto"><select id="q-course" aria-label="Unit">${unitOpts(cid,'General')}</select><input id="q-title" placeholder="Add your own, e.g. redo Q4 from the week 3 worksheet" aria-label="Add to Next up" required><button class="btn primary" type="submit">Add</button></form>
+  </div>`;
+}
+function noteCard(n){
+  const c=course(n.courseId), ts=(n.taskIds||[]).map(id=>state.tasks.find(t=>t.id===id)).filter(Boolean);
+  return `<article class="note" style="--cc:var(--${c?.color||'accent'})">
+    <div class="panel-head"><h3>${n.pinned?'<span title="Pinned">📌 </span>':''}${esc(n.title||'Untitled note')}</h3><button class="btn ghost" type="button" data-act="editNote" data-id="${n.id}">Edit</button></div>
+    <span class="meta" style="display:flex;flex-wrap:wrap;gap:6px;font-size:12px;color:var(--muted)">${chip(c)}${n.week?`<span>Week ${n.week}</span>`:''}${(n.topics||[]).map(t=>`<span class="tag" style="margin:0;background:var(--sunken)">${esc(shortT(t,40))}</span>`).join('')}${ts.map(t=>`<span>· ${esc(t.title)}</span>`).join('')}</span>
+    <div class="md">${md(n.body)}</div></article>`;
+}
+function studyNotes(){
+  const cid=unitSel(), ws=teachWeeks();
+  const ns=SD().notes.filter(n=>(!cid||n.courseId===cid)&&(study.week==='all'||String(n.week||'')===study.week)&&hasQ(n.title,n.body,(n.topics||[]).join(' ')))
+    .sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0)||(b.week||0)-(a.week||0)||String(b.updated||'').localeCompare(String(a.updated||'')));
+  return `<div class="panel"><div class="panel-head"><h2>Summaries</h2><div class="filters"><select aria-label="Week" onchange="this.dispatchEvent(new CustomEvent('stweek',{bubbles:true,detail:this.value}))"><option value="all">All weeks</option>${ws.map(w=>`<option value="${w.teach}"${String(w.teach)===study.week?' selected':''}>Week ${w.teach}</option>`).join('')}</select><button class="btn primary" type="button" data-act="addNote">New summary</button></div></div>
+    <p class="hint" style="margin:0">Your handwritten notes stay your main record. Use these for short summaries you want on every device: key ideas, worked-example steps, where to find things in your notebook. Write in Markdown: <code>**bold**</code>, <code>- lists</code>, and maths between dollar signs, like <code>$v = u + at$</code> or <code>$$\\frac{dy}{dx}$$</code> on its own line.</p></div>
+    ${ns.length?`<div class="notes">${ns.map(noteCard).join('')}</div>`:`<div class="panel"><p class="empty">${SD().notes.length?'No notes match.':'No summaries yet. Press New summary, or use + Note on a Weekly work item or an assessment.'}</p></div>`}`;
+}
+function packsToOffer(){
+  return Object.entries(STUDY_DATA.packs).filter(([code])=>findUnit(code)&&!SD().packs.includes(code)&&(!unitSel()||findUnit(code).id===unitSel()));
+}
+function studyFormulas(){
+  const cid=unitSel();
+  const fs=SD().formulas.filter(f=>(!cid||f.courseId===cid)&&hasQ(f.name,f.tex,f.where,f.when,f.topic));
+  const packs=packsToOffer();
+  const groups=state.courses.filter(c=>!cid||c.id===cid).map(c=>{
+    const mine=fs.filter(f=>f.courseId===c.id); if(!mine.length) return '';
+    const order=topicsFor(c), byT=new Map();
+    mine.forEach(f=>{const k=f.topic||'';if(!byT.has(k))byT.set(k,[]);byT.get(k).push(f);});
+    const keys=[...byT.keys()].sort((a,b)=>(order.indexOf(a)+1||999)-(order.indexOf(b)+1||999));
+    return `<section class="panel fsheet" style="--cc:var(--${c.color})"><h2>${chip(c)} ${esc(c.name)}</h2>
+      ${keys.map(k=>`<div><div class="label" style="padding-top:6px">${esc(k?shortT(k,90):'Other')}</div><div class="flist">${byT.get(k).map(f=>`<div class="formula">
+        <b>${esc(f.name)}</b><button class="btn ghost noprint" type="button" data-act="editFormula" data-id="${f.id}">Edit</button>
+        <div class="fx">${tex(f.tex,true)}</div>
+        ${f.where?`<div class="md hint" style="grid-column:1/-1">${md(f.where)}</div>`:''}${f.when?`<div class="hint" style="grid-column:1/-1"><b>Use when:</b> ${esc(f.when)}</div>`:''}</div>`).join('')}</div></div>`).join('')}
+    </section>`;}).join('');
+  return `<div class="panel noprint"><div class="panel-head"><h2>Formula sheet</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-act="printSheet">Print or save as PDF</button><button class="btn primary" type="button" data-act="addFormula">Add formula</button></div></div>
+    <p class="hint" style="margin:0">Write formulas in LaTeX, for example <code>v^2 = u^2 + 2as</code> or <code>\\frac{d}{dx}\\sin x = \\cos x</code>. The preview shows as you type.</p>
+    ${packs.map(([code,p])=>`<div class="notice"><span><b>Starter formulas for ${esc(code)}:</b> ${p.formulas.length} standard formulas${p.topics&&!(findUnit(code).content||[]).length?` and its ${p.topics.length} weekly topics`:''}, grouped by topic. They come from standard maths and physics, so check them against your lecture notes. You can edit or delete any of them.</span><button class="btn primary" type="button" data-act="addPack" data-id="${code}">Add them</button></div>`).join('')}</div>
+    ${groups||`<div class="panel"><p class="empty">${SD().formulas.length?'No formulas match.':'No formulas yet.'}</p></div>`}`;
+}
+function levelPicker(cid,t){
+  const s=topicState(cid,t);
+  return `<span class="lv" role="group" aria-label="Confidence">${[1,2,3,4].map(l=>`<button type="button" style="--lc:var(--${LEVELS[l].c})" data-act="topicLevel" data-cid="${cid}" data-topic="${esc(t)}" data-level="${l}" aria-pressed="${s.level===l}">${LEVELS[l].n}</button>`).join('')}</span>`;
+}
+function studyTopics(){
+  const cid=unitSel(), weak=weakTopics(cid);
+  const ms=SD().mistakes.filter(m=>(!cid||m.courseId===cid)&&hasQ(m.what,m.fix,m.where,m.topic)).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  const units=state.courses.filter(c=>!cid||c.id===cid).map(c=>{
+    const ts=topicsFor(c).filter(t=>hasQ(t)), extra=new Set(SD().extraTopics.filter(x=>x.courseId===c.id).map(x=>x.title));
+    return `<div class="panel course" style="--cc:var(--${c.color})"><div class="panel-head"><h3>${chip(c)} ${esc(c.name)}</h3></div>
+      <div class="list">${ts.map(t=>{const s=topicState(c.id,t), nn=SD().notes.filter(n=>n.courseId===c.id&&(n.topics||[]).includes(t)).length, nf=SD().formulas.filter(f=>f.courseId===c.id&&f.topic===t).length, nm=SD().mistakes.filter(m=>m.courseId===c.id&&m.topic===t).length;
+        return `<div class="row trow"><div class="t"><span class="title" style="font-weight:600">${esc(t)}</span><span class="meta">${s.last?`Practised ${fmt(s.last)}`:'Not practised yet'}${nn?` · ${nn} note${nn>1?'s':''}`:''}${nf?` · ${nf} formula${nf>1?'s':''}`:''}${nm?` · ${nm} mistake${nm>1?'s':''}`:''}</span></div>
+        <div class="end">${levelPicker(c.id,t)}<button class="btn ghost" type="button" data-act="topicPractised" data-cid="${c.id}" data-topic="${esc(t)}">Practised today</button>${extra.has(t)?`<button class="btn ghost" type="button" data-act="topicDel" data-cid="${c.id}" data-topic="${esc(t)}" aria-label="Remove topic">✕</button>`:''}</div></div>`;}).join('')||`<p class="empty">${topicsFor(c).length?'No topics match.':'No topics yet. Import this unit’s Canvas download, or add topics here.'}</p>`}</div>
+      <form class="addline" data-addtopic="${c.id}" style="grid-template-columns:1fr auto"><input placeholder="Add a topic" aria-label="Add a topic to ${esc(c.code)}"><button class="btn" type="submit">Add</button></form></div>`;}).join('');
+  return `<div class="grid g3">
+    <div class="panel"><div class="panel-head"><h2>Weak areas</h2></div>
+      <div class="list">${weak.slice(0,10).map(({c,t,s,rm})=>`<div class="row" style="grid-template-columns:1fr"><div class="t"><span class="title" style="font-weight:600">${esc(shortT(t))}</span><span class="meta">${chip(c)}${s.level?`<span class="pill" style="background:color-mix(in srgb,var(--${LEVELS[s.level].c}) 18%,transparent);color:var(--${LEVELS[s.level].c})">${LEVELS[s.level].n}</span>`:''}${rm?`<span>${rm} recent mistake${rm>1?'s':''}</span>`:''}</span></div></div>`).join('')||'<p class="empty">Nothing marked weak. Rate each topic below as you go; Not yet and Shaky topics show up here and in Next up.</p>'}</div></div>
+    <div class="panel" style="grid-column:span 2;min-width:min(100%,260px)"><div class="panel-head"><h2>Mistake log</h2><button class="btn primary" type="button" data-act="addMistake">Log a mistake</button></div>
+      <div class="list">${ms.slice(0,30).map(m=>{const c=course(m.courseId);return `<div class="row" style="grid-template-columns:1fr auto"><div class="t"><span class="title">${esc(m.what)}</span><span class="meta">${chip(c)}<span class="num">${fmt(m.date)}</span>${m.where?`<span>· ${esc(m.where)}</span>`:''}${m.topic?`<span>· ${esc(shortT(m.topic,50))}</span>`:''}${m.why?`<span>· ${esc(m.why)}</span>`:''}</span>${m.fix?`<span class="why"><b>Fix:</b> ${esc(m.fix)}</span>`:''}</div><button class="btn ghost" type="button" data-act="editMistake" data-id="${m.id}">Edit</button></div>`;}).join('')||'<p class="empty">Each time you lose marks or get a practice question wrong, write down what happened and the fix. It’s one of the best ways to stop repeating a mistake.</p>'}</div></div>
+  </div>
+  <div class="grid">${units||'<div class="panel"><p class="empty">Add your units first.</p></div>'}</div>`;
+}
+function studyUnits(){
+  const all=[...STUDY_DATA.units,...SD().units.map(u=>({...u,group:'Your own',name:u.name||''}))].filter(u=>hasQ(u.quantity,u.name,u.sym,u.base,u.note));
+  const groups=[...new Set(all.map(u=>u.group))];
+  return `<div class="panel"><div class="panel-head"><h2>SI units</h2></div>
+    ${groups.map(g=>`<div><div class="label" style="padding-top:8px">${esc(g)}</div><div style="overflow-x:auto"><table class="sitable"><thead><tr><th>${g==='Prefixes'?'Factor':'Quantity'}</th><th>${g==='Prefixes'?'Prefix':'Unit'}</th><th>Symbol</th><th>${g==='Constants'?'Value':g==='Prefixes'?'':'In base units'}</th><th>Note</th></tr></thead><tbody>
+      ${all.filter(u=>u.group===g).map(u=>`<tr><td>${esc(u.quantity)}</td><td>${esc(u.name)}</td><td class="sym">${esc(u.sym)}</td><td class="num" style="font-size:12px">${esc(u.base)}</td><td class="hint">${esc(u.note)}${u.id?` <button class="btn ghost" type="button" data-act="unitDel" data-id="${u.id}" aria-label="Remove ${esc(u.sym)}">✕</button>`:''}</td></tr>`).join('')}</tbody></table></div></div>`).join('')||'<p class="empty">No units match.</p>'}
+    <form class="addline" id="uForm" style="grid-template-columns:1fr 1fr 1fr 1.4fr auto"><input id="u-quantity" placeholder="Quantity" aria-label="Quantity" required><input id="u-sym" placeholder="Symbol" aria-label="Symbol" required><input id="u-base" placeholder="Value or base units" aria-label="Value or base units"><input id="u-note" placeholder="Note" aria-label="Note"><button class="btn" type="submit">Add</button></form>
+  </div>`;
+}
+document.addEventListener('stweek',e=>{study.week=e.detail;renderStudyBody();});
+
+/* ---------- study dialogs ---------- */
+const topicChecks=(cid,sel,name='topics')=>{const ts=topicsFor(course(cid));return ts.length?ts.map(t=>`<label class="field inline hint"><input type="checkbox" name="${name}" value="${esc(t)}"${sel.includes(t)?' checked':''}>${esc(shortT(t,80))}</label>`).join(''):'<span class="hint">This unit has no topics yet.</span>';};
+function noteDialog(n,preset={}){
+  if(!state.courses.length){courseDialog();return;}
+  loadLibs();
+  const isNew=!n;
+  n=n||{id:uid(),courseId:preset.courseId||unitSel()||state.courses[0].id,week:preset.week??curTeachWeek(),title:preset.title||'',body:'',topics:preset.topics||[],taskIds:preset.taskIds||[],cwId:preset.cwId||null,pinned:false};
+  const taskChecks=cid=>{const ts=state.tasks.filter(t=>t.courseId===cid).sort((a,b)=>a.due.localeCompare(b.due));return ts.length?ts.map(t=>`<label class="field inline hint"><input type="checkbox" name="taskIds" value="${t.id}"${(n.taskIds||[]).includes(t.id)?' checked':''}>${esc(t.title)}</label>`).join(''):'<span class="hint">No assessments for this unit.</span>';};
+  openDialog(`<h2>${isNew?'New summary':'Edit summary'}</h2>
+    <div class="fields">
+      <label class="field" style="grid-column:1/-1"><span class="label">Title</span><input name="title" value="${esc(n.title)}" placeholder="Chain rule: the 3 steps"></label>
+      <label class="field"><span class="label">Unit</span><select name="courseId" id="n-course">${unitOpts(n.courseId)}</select></label>
+      <label class="field"><span class="label">Week</span><select name="week"><option value="">No week</option>${teachWeeks().map(w=>`<option value="${w.teach}"${w.teach===n.week?' selected':''}>Week ${w.teach}</option>`).join('')}</select></label>
+      <label class="field inline" style="align-self:end"><input type="checkbox" name="pinned"${n.pinned?' checked':''}><span>Pin to top</span></label>
+    </div>
+    <label class="field"><span class="label">Note</span><textarea name="body" id="n-body" placeholder="Key points in a few lines. Maths: $F = ma$, or $$\\int_a^b f(x)\\,dx$$ on its own line. Note where the full version is, e.g. Notebook 2, p. 14.">${esc(n.body)}</textarea></label>
+    <div class="field"><span class="label">Preview</span><div class="md" id="n-prev" style="border:1px dashed var(--line);border-radius:8px;padding:8px 10px;min-height:40px"></div></div>
+    <details><summary class="label" style="cursor:pointer">Topics</summary><div id="n-topics" style="display:flex;flex-direction:column;gap:2px;padding-top:6px">${topicChecks(n.courseId,n.topics||[])}</div></details>
+    <details><summary class="label" style="cursor:pointer">Assessments it helps with</summary><div id="n-tasks" style="display:flex;flex-direction:column;gap:2px;padding-top:6px">${taskChecks(n.courseId)}</div></details>
+    ${actions(isNew?'':'Delete summary')}`,
+  fd=>{
+    const title=fd.get('title').trim(), body=fd.get('body');
+    if(!title&&!body.trim()) return 'Write something first.';
+    Object.assign(n,{title:title||body.trim().split('\n')[0].replace(/^#+\s*/,'').slice(0,60),body,courseId:fd.get('courseId'),week:fd.get('week')?+fd.get('week'):null,pinned:!!fd.get('pinned'),topics:fd.getAll('topics'),taskIds:fd.getAll('taskIds'),updated:todayIso()});
+    if(isNew) SD().notes.push(n);
+    commit();
+  },()=>{SD().notes=SD().notes.filter(x=>x.id!==n.id);commit();});
+  const body=form.querySelector('#n-body'), prev=form.querySelector('#n-prev'), upd=()=>{prev.innerHTML=body.value.trim()?md(body.value):'<span class="hint">Your formatted note shows here.</span>';};
+  let tm; body.oninput=()=>{clearTimeout(tm);tm=setTimeout(upd,200);}; upd(); loadLibs()?.then(upd);
+  form.querySelector('#n-course').onchange=e=>{form.querySelector('#n-topics').innerHTML=topicChecks(e.target.value,[]);n.taskIds=[];form.querySelector('#n-tasks').innerHTML=taskChecks(e.target.value);};
+}
+function formulaDialog(f){
+  if(!state.courses.length){courseDialog();return;}
+  loadLibs();
+  const isNew=!f;
+  f=f||{id:uid(),courseId:unitSel()||state.courses[0].id,name:'',tex:'',where:'',when:'',topic:''};
+  const tOpts=(cid,sel)=>`<option value="">No topic</option>`+topicsFor(course(cid)).map(t=>`<option value="${esc(t)}"${t===sel?' selected':''}>${esc(shortT(t,60))}</option>`).join('');
+  openDialog(`<h2>${isNew?'Add formula':'Edit formula'}</h2>
+    <div class="fields">
+      <label class="field" style="grid-column:1/-1"><span class="label">Name</span><input name="name" required value="${esc(f.name)}" placeholder="Conservation of energy"></label>
+      <label class="field"><span class="label">Unit</span><select name="courseId" id="f2-course">${unitOpts(f.courseId)}</select></label>
+      <label class="field" style="grid-column:span 2"><span class="label">Topic</span><select name="topic" id="f2-topic">${tOpts(f.courseId,f.topic)}</select></label>
+    </div>
+    <label class="field"><span class="label">Formula (LaTeX)</span><textarea name="tex" id="f2-tex" style="min-height:70px;font-family:var(--mono);font-size:13px" placeholder="K_1 + U_1 = K_2 + U_2">${esc(f.tex)}</textarea></label>
+    <div class="fx" id="f2-prev" style="border:1px dashed var(--line);border-radius:8px;padding:6px 10px;min-height:40px;overflow-x:auto"></div>
+    <label class="field"><span class="label">What the symbols mean, with units</span><input name="where" value="${esc(f.where)}" placeholder="$m$ mass (kg), $v$ speed (m/s), $h$ height (m)"></label>
+    <label class="field"><span class="label">Use it when</span><input name="when" value="${esc(f.when)}" placeholder="No friction, or friction work is known"></label>
+    ${actions(isNew?'':'Delete formula')}`,
+  fd=>{
+    const name=fd.get('name').trim(), t=fd.get('tex').trim();
+    if(!name||!t) return 'Give the formula a name and the formula itself.';
+    Object.assign(f,{name,tex:t,courseId:fd.get('courseId'),topic:fd.get('topic'),where:fd.get('where').trim(),when:fd.get('when').trim()});
+    if(isNew) SD().formulas.push(f);
+    commit();
+  },()=>{SD().formulas=SD().formulas.filter(x=>x.id!==f.id);commit();});
+  const ta=form.querySelector('#f2-tex'), pv=form.querySelector('#f2-prev'), upd=()=>{pv.innerHTML=ta.value.trim()?tex(ta.value,true):'<span class="hint">Preview</span>';};
+  ta.oninput=upd; upd(); loadLibs()?.then(upd);
+  form.querySelector('#f2-course').onchange=e=>{form.querySelector('#f2-topic').innerHTML=tOpts(e.target.value,'');};
+}
+function mistakeDialog(m){
+  if(!state.courses.length){courseDialog();return;}
+  const isNew=!m;
+  m=m||{id:uid(),courseId:unitSel()||state.courses[0].id,date:todayIso(),topic:'',where:'',what:'',why:'',fix:''};
+  const tOpts=(cid,sel)=>`<option value="">No topic</option>`+topicsFor(course(cid)).map(t=>`<option value="${esc(t)}"${t===sel?' selected':''}>${esc(shortT(t,60))}</option>`).join('');
+  openDialog(`<h2>${isNew?'Log a mistake':'Edit mistake'}</h2>
+    <div class="fields">
+      <label class="field"><span class="label">Unit</span><select name="courseId" id="m-course">${unitOpts(m.courseId)}</select></label>
+      <label class="field"><span class="label">Date</span><input type="date" name="date" value="${m.date}"></label>
+      <label class="field"><span class="label">Where</span><input name="where" list="m-where" value="${esc(m.where)}" placeholder="Portfolio 2, worksheet Q4…"><datalist id="m-where">${state.tasks.filter(t=>t.courseId===m.courseId).map(t=>`<option value="${esc(t.title)}">`).join('')}</datalist></label>
+      <label class="field" style="grid-column:1/-1"><span class="label">Topic</span><select name="topic" id="m-topic">${tOpts(m.courseId,m.topic)}</select></label>
+      <label class="field" style="grid-column:1/-1"><span class="label">What went wrong</span><input name="what" required value="${esc(m.what)}" placeholder="Forgot the chain rule on sin(3x)"></label>
+      <label class="field"><span class="label">Why</span><select name="why"><option value=""></option>${WHY.map(w=>`<option${w===m.why?' selected':''}>${w}</option>`).join('')}</select></label>
+      <label class="field" style="grid-column:span 2"><span class="label">The fix, for next time</span><input name="fix" value="${esc(m.fix)}" placeholder="Differentiate the inside and multiply: 3cos(3x)"></label>
+      ${isNew?'<label class="field inline hint" style="grid-column:1/-1"><input type="checkbox" name="lower" checked>Lower my confidence in this topic by one level</label>':''}
+    </div>${actions(isNew?'':'Delete')}`,
+  fd=>{
+    const what=fd.get('what').trim(); if(!what) return 'Say what went wrong.';
+    Object.assign(m,{courseId:fd.get('courseId'),date:fd.get('date')||todayIso(),where:fd.get('where').trim(),topic:fd.get('topic'),what,why:fd.get('why'),fix:fd.get('fix').trim()});
+    if(isNew){SD().mistakes.push(m);if(fd.get('lower')&&m.topic){const s=topicState(m.courseId,m.topic);setTopic(m.courseId,m.topic,{level:Math.max(1,(s.level||3)-1)});}}
+    commit();
+  },()=>{SD().mistakes=SD().mistakes.filter(x=>x.id!==m.id);commit();});
+  form.querySelector('#m-course').onchange=e=>{form.querySelector('#m-topic').innerHTML=tOpts(e.target.value,'');form.querySelector('#m-where').innerHTML=state.tasks.filter(t=>t.courseId===e.target.value).map(t=>`<option value="${esc(t.title)}">`).join('');};
+}
+function addPack(code){
+  const p=STUDY_DATA.packs[code], c=findUnit(code); if(!p||!c||SD().packs.includes(code)) return;
+  if(p.topics&&!(c.content||[]).length) p.topics.forEach(t=>{if(!topicsFor(c).includes(t))SD().extraTopics.push({courseId:c.id,title:t});});
+  const have=new Set(SD().formulas.filter(f=>f.courseId===c.id).map(f=>normT(f.name)));
+  p.formulas.forEach(f=>{if(have.has(normT(f.name)))return;SD().formulas.push({id:uid(),courseId:c.id,name:f.name,tex:f.tex,where:f.where,when:f.when,topic:matchTopic(c,f.topic)||f.topic,pack:code});});
+  SD().packs.push(code); commit();
+}
+function studyClick(a,b){
+  const id=b.dataset.id;
+  if(a.startsWith('nx')){nextAction(a,b.dataset.key);return true;}
+  if(a==='addNote'){noteDialog(null,{week:study.week!=='all'?+study.week:undefined});return true;}
+  if(a==='editNote'){noteDialog(SD().notes.find(n=>n.id===id));return true;}
+  if(a==='noteCw'){const x=state.classwork.find(x=>x.id===id);if(x)noteDialog(null,{courseId:x.courseId,week:teachOf(x.weekOf),title:x.title,cwId:x.id});return true;}
+  if(a==='noteTask'){const t=state.tasks.find(t=>t.id===id);if(t)noteDialog(null,{courseId:t.courseId,week:teachOf(t.due),title:t.title,taskIds:[t.id],topics:coveredBy(t).length<=3?coveredBy(t):[]});return true;}
+  if(a==='addFormula'){formulaDialog();return true;}
+  if(a==='editFormula'){formulaDialog(SD().formulas.find(f=>f.id===id));return true;}
+  if(a==='addPack'){addPack(id);return true;}
+  if(a==='printSheet'){document.body.classList.add('print-sheet');window.print();return true;}
+  if(a==='addMistake'){mistakeDialog();return true;}
+  if(a==='editMistake'){mistakeDialog(SD().mistakes.find(m=>m.id===id));return true;}
+  if(a==='topicLevel'){const s=topicState(b.dataset.cid,b.dataset.topic),l=+b.dataset.level;setTopic(b.dataset.cid,b.dataset.topic,{level:s.level===l?0:l});commit();return true;}
+  if(a==='topicPractised'){setTopic(b.dataset.cid,b.dataset.topic,{last:todayIso()});commit();return true;}
+  if(a==='topicDel'){SD().extraTopics=SD().extraTopics.filter(x=>!(x.courseId===b.dataset.cid&&x.title===b.dataset.topic));commit();return true;}
+  if(a==='unitDel'){SD().units=SD().units.filter(u=>u.id!==id);commit();return true;}
+  if(a==='studyNext'){study.sec='next';keepStudy();setView('study');return true;}
+  if(a==='studyUnit'){study.unit=id;study.sec='topics';keepStudy();setView('study');return true;}
+  return false;
+}
+window.addEventListener('afterprint',()=>document.body.classList.remove('print-sheet'));
+
 /* ---------- render/router ---------- */
 function render(){
   renderHeader();
-  ({overview:renderOverview,planner:renderPlanner,weekly:renderWeekly,deadlines:renderDeadlines,courses:renderCourses,import:renderImport})[view]();
+  ({overview:renderOverview,planner:renderPlanner,weekly:renderWeekly,study:renderStudy,deadlines:renderDeadlines,courses:renderCourses,import:renderImport})[view]();
 }
 function setView(v){
   if(!VIEWS.includes(v)) v='overview';
@@ -1017,6 +1425,7 @@ function taskDialog(t,presetCourse){
       <label class="field"><span class="label">Out of</span><input id="f-max" type="number" step="any" min="0" name="max" value="${t.max??''}" placeholder="e.g. 20"></label>
       <label class="field" style="grid-column:1/-1"><span class="label">Notes</span><input id="f-notes" name="notes" value="${esc(t.notes)}" placeholder="Word limit, submission link, feedback…"></label>
     </div>
+    <details><summary class="label" style="cursor:pointer">Topics this covers</summary><div id="f-covers" style="display:flex;flex-direction:column;gap:2px;padding-top:6px">${topicChecks(t.courseId,coveredBy(t),'covers')}</div><span class="hint">Used by Next up to bring weak topics forward before this is due.</span></details>
     ${isNew?'':`<div class="field"><span class="label">Study sessions for this assessment</span>${ss.map(s=>`<span class="hint">${fmt(s.date,{weekday:'short',day:'numeric',month:'short'})} ${s.start}–${s.end} · ${esc(s.title)}${s.done?' ✓':''}</span>`).join('')||'<span class="hint">None planned yet.</span>'}<div><button class="btn ghost" type="button" id="f-plan">+ Plan a session</button></div></div>`}
     ${actions(isNew?'':'Delete assessment')}`,
   fd=>{
@@ -1026,16 +1435,17 @@ function taskDialog(t,presetCourse){
     if(score!=null&&score>max) return 'The mark can’t be more than what it’s out of.';
     Object.assign(t,{title,courseId:fd.get('courseId'),type:fd.get('type'),due:fd.get('due'),category:fd.get('category'),stage:fd.get('stage'),notes:fd.get('notes').trim(),score,max});
     if(score!=null) t.stage='Marked';
+    if(form.querySelector('#f-covers input')) state.study.covers[t.id]=fd.getAll('covers');
     if(isNew) state.tasks.push(t);
     commit();
-  },()=>{state.tasks=state.tasks.filter(x=>x.id!==t.id);state.sessions.forEach(s=>{if(s.taskId===t.id)s.taskId=null;});commit();});
-  form.querySelector('#f-course').onchange=e=>{form.querySelector('#f-cat').innerHTML=catOpts(e.target.value);};
+  },()=>{delete state.study.covers[t.id];state.tasks=state.tasks.filter(x=>x.id!==t.id);state.sessions.forEach(s=>{if(s.taskId===t.id)s.taskId=null;});commit();});
+  form.querySelector('#f-course').onchange=e=>{form.querySelector('#f-cat').innerHTML=catOpts(e.target.value);form.querySelector('#f-covers').innerHTML=topicChecks(e.target.value,[],'covers');};
   const fp=form.querySelector('#f-plan'); if(fp) fp.onclick=()=>{dlg.close();sessionDialog(null,t);};
 }
 
-function sessionDialog(s,forTask){
+function sessionDialog(s,forTask,preset){
   const isNew=!s;
-  const base=forTask?{courseId:forTask.courseId,taskId:forTask.id,title:forTask.title}:{courseId:state.courses[0]?.id||'',taskId:null,title:''};
+  const base=forTask?{courseId:forTask.courseId,taskId:forTask.id,title:forTask.title}:preset?{courseId:preset.courseId,taskId:null,title:preset.title}:{courseId:state.courses[0]?.id||'',taskId:null,title:''};
   const defDate=view==='planner'&&selWeek>today0()?selWeek:today0();
   s=s||{id:uid(),date:iso(defDate),start:'14:00',end:'16:00',done:false,...base};
   const taskOpts=cid=>`<option value="">No specific assessment</option>`+state.tasks.filter(t=>t.courseId===cid&&(!isDone(t)||t.id===s.taskId)).map(t=>`<option value="${t.id}"${t.id===s.taskId?' selected':''}>${esc(t.title)}</option>`).join('');
@@ -1180,6 +1590,7 @@ document.addEventListener('click',e=>{
   const n=e.target.closest('[data-wk]'); if(n){selWeek=+n.dataset.wk===0?monday(today0()):addDays(selWeek,7*+n.dataset.wk);render();return;}
   const b=e.target.closest('[data-act]'); if(!b||b.closest('dialog')||b.tagName==='SELECT') return;
   const id=b.dataset.id, a=b.dataset.act;
+  if(studyClick(a,b)) return;
   if(a==='toggle'){const t=state.tasks.find(x=>x.id===id);t.stage=isDone(t)?'In progress':(t.score!=null?'Marked':'Submitted');commit();}
   if(a==='editTask') taskDialog(state.tasks.find(x=>x.id===id));
   if(a==='addTaskFor') taskDialog(null,id);
