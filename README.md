@@ -12,6 +12,16 @@ It has the same features as the Semester Desk page that was built in Claude:
 - **Import:** reads a timetable calendar file (.ics) or a Canvas course download right on your device.
 - **Study:** a supplement to your handwritten notes, with a *Next up* list of what to study next, short summaries, a printable formula sheet, an SI units reference, and a weak-areas tracker with a mistake log.
 
+### Weekly study blocks
+
+Press **Weekly study template** in the Week planner. The Desk builds a week of study blocks around your classes: two 2-hour deep-work blocks a day from Monday to Saturday (each unit three times a week, 24 hours in all), a 1-hour light block most evenings, and a 2-hour **catch-up** block on Friday. Sunday stays free for your weekly review. The **Mid-semester break** template is about 5 hours a day of consolidation. Change any block, then press **Save and fill my planner** to place the blocks from today to the end of term. A block that would clash with a class moves to the nearest free time that day. Christmas Day is always left free, and you can add other days off.
+
+Re-saving the template replaces future template sessions you haven't touched. Sessions you've edited, ticked off or added yourself are kept.
+
+**Missed sessions:** a study session from an earlier day that isn't ticked off moves into the next Friday catch-up block, never onto the next day. If the catch-up block is full, the planner says how much didn't fit, which is the cue to make next week's template lighter. Tick sessions off as you finish them, from the Overview's *Today* list or by opening them in the planner.
+
+**On your phone and in Outlook:** with sync turned on, open **Settings & backup → Study sessions in your phone or Outlook calendar** and press **Make my calendar link**. Subscribe to that link once in Outlook (*Add calendar → Subscribe from web*), on iPhone (*Settings → Calendar → Accounts → Add Subscribed Calendar*) or in Google Calendar (*From URL*). Each study session then appears with a reminder 10 minutes before it, and the link updates whenever the Desk syncs. Calendars refresh subscriptions every hour or few. The link is a second secret gist that holds only your study sessions. Keep it private.
+
 ### The Study tab
 
 Your handwritten notes stay your main record. The Study tab holds what's worth having on every device:

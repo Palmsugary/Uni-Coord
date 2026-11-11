@@ -234,6 +234,9 @@ textarea{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--
 @media (max-width:760px){.trow{grid-template-columns:1fr}.trow .end{justify-content:flex-start}}
 .flist{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));column-gap:28px}
 .row.compact .end{justify-content:flex-start}
+dialog:has(.tprow){width:min(880px,calc(100vw - 32px))}
+.tprow{grid-template-columns:.8fr 1.2fr 1.2fr 1.1fr 1.2fr auto}
+@media (max-width:520px){.tprow{grid-template-columns:1fr 1fr 1fr}}
 .hint .katex,.why .katex{font-size:1.05em}
 .minibtn{border:0;background:none;padding:0;color:var(--accent);font-weight:700;font-size:12px}
 @media print{
@@ -338,7 +341,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const uid=()=>Math.random().toString(36).slice(2,9);
 const isDone=t=>t.stage==='Submitted'||t.stage==='Marked';
 
-function blankState(){return {v:3,term:{name:'Semester 2, 2026',start:'2026-07-27',breakStart:'2026-09-28',breakEnd:'2026-10-04',swotStart:'2026-10-26',examStart:'2026-11-02',end:'2026-11-20',census:'2026-08-31',gpaScale:7},courses:[],tasks:[],classwork:[],sessions:[],study:blankStudy(),example:false};}
+function blankState(){return {v:3,term:{name:'Semester 2, 2026',start:'2026-07-27',breakStart:'2026-09-28',breakEnd:'2026-10-04',swotStart:'2026-10-26',examStart:'2026-11-02',end:'2026-11-20',census:'2026-08-31',gpaScale:7},courses:[],tasks:[],classwork:[],sessions:[],study:blankStudy(),plan:blankPlan(),example:false};}
 function normalise(s){
   if(!s||!(s.v>=2)) return blankState();
   const b=blankState();
@@ -346,6 +349,7 @@ function normalise(s){
   for(const k of ['courses','tasks','classwork','sessions']) s[k]=Array.isArray(s[k])?s[k]:[];
   s.tasks.forEach(t=>{ if(!STAGES.includes(t.stage)) t.stage=t.score!=null?'Marked':t.done?'Submitted':'Not started'; t.notes=t.notes||''; });
   s.study=normStudy(s.study);
+  s.plan=normPlan(s.plan);
   s.v=3; return s;
 }
 
@@ -502,7 +506,7 @@ function renderOverview(){
       <div class="panel"><div class="panel-head"><h2>Today</h2><button class="btn ghost" type="button" data-goto="planner">Week planner →</button></div>
         <div class="list">${today.map(x=>x.kind==='class'
           ?`<div class="row" style="grid-template-columns:auto 1fr"><span class="num" style="font-size:13px">${x.start}</span><div class="t"><span class="title">${esc(x.label)} · ${esc(x.c.name)}</span><span class="meta">${chip(x.c)}<span>${esc(x.room||'')}</span><span class="num">until ${x.end}</span></span></div></div>`
-          :`<div class="row${x.s.done?' isdone':''}" style="grid-template-columns:auto 1fr"><span class="num" style="font-size:13px">${x.start}</span><div class="t"><span class="title">Study: ${esc(x.s.title)}</span><span class="meta">${chip(x.c)}<span class="num">until ${x.end}</span></span></div></div>`).join('')||`<p class="empty">${noClass} No study sessions planned.</p>`}</div>
+          :`<div class="row${x.s.done?' isdone':''}" style="grid-template-columns:auto 1fr auto"><span class="num" style="font-size:13px">${x.start}</span><div class="t"><span class="title">Study: ${esc(x.s.title)}</span><span class="meta">${chip(x.c)}<span class="num">until ${x.end}</span>${x.s.from?`<span>· moved from ${fmt(x.s.from,{weekday:'short'})}</span>`:''}</span></div><button class="check" type="button" data-act="sesToggle" data-id="${x.s.id}" aria-pressed="${!!x.s.done}" aria-label="Mark ${esc(x.s.title)} ${x.s.done?'not done':'done'}">${x.s.done?tick:''}</button></div>`).join('')||`<p class="empty">${noClass} No study sessions planned.</p>`}</div>
       </div>
       <div class="panel"><div class="panel-head"><h2>Class work this week</h2><button class="btn ghost" type="button" data-goto="weekly">Open →</button></div>
         <div class="list">${cw.slice(0,8).map(cwRow).join('')||'<p class="empty">Nothing listed. Add readings and prep in Weekly work.</p>'}</div>
@@ -520,17 +524,26 @@ function weekNav(){
 }
 function renderPlanner(){
   const ws=selWeek, days=[...Array(7)].map((_,i)=>addDays(ws,i));
-  const t0=today0(), all=days.map(d=>itemsOnDate(d));
+  const t0=today0();
+  // A catch-up block shows only the time missed sessions haven't taken yet.
+  const all=days.map(d=>itemsOnDate(d).flatMap(x=>{if(x.kind!=='session'||x.s.kind!=='catchup')return [x];const L=catchupLoad(x.s.date);if(!L||!L.used)return [x];if(L.used>=L.cap)return [];return [{...x,start:mm(toMin(x.start)+L.used)}];}));
   let lo=8*60, hi=19*60;
   all.flat().forEach(x=>{lo=Math.min(lo,Math.floor(toMin(x.start)/60)*60);hi=Math.max(hi,Math.ceil(toMin(x.end)/60)*60);});
   const HH=48, px=m=>(m-lo)/60*HH, H=px(hi);
   const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
   const hours=[];for(let h=lo;h<hi;h+=60)hours.push(`<span style="top:${px(h)}px">${String(h/60).padStart(2,'0')}:00</span>`);
   const w=weekAt(addDays(ws,2));
-  const hrs=state.sessions.filter(s=>days.some(d=>iso(d)===s.date)).reduce((a,s)=>a+(toMin(s.end)-toMin(s.start))/60,0);
+  const wkS=state.sessions.filter(s=>days.some(d=>iso(d)===s.date));
+  const hrs=wkS.reduce((a,s)=>a+(toMin(s.end)-toMin(s.start))/60,0), deep=wkS.filter(s=>s.kind==='deep'||(!s.kind&&!s.tpl)).reduce((a,s)=>a+(toMin(s.end)-toMin(s.start))/60,0);
+  const cl=days.map(d=>catchupLoad(iso(d))).find(Boolean);
+  const notes=[];
+  if(!PL().templates.teach.length) notes.push(`<div class="notice"><span><b>No weekly study template yet.</b> Set one up and the Desk places your study blocks around your classes for the whole term.</span><button class="btn primary" type="button" data-act="tplOpen">Set up study blocks</button></div>`);
+  const um=unplacedMissed();
+  if(um.length) notes.push(`<div class="notice"><span><b>${um.length} missed session${um.length>1?'s':''} (${(um.reduce((a,s)=>a+toMin(s.end)-toMin(s.start),0)/60).toFixed(1)} hours) didn’t fit the Friday catch-up.</b> Tick any you actually did, make next week’s template lighter, or move them by hand.</span><button class="btn" type="button" data-act="tplOpen">Edit template</button></div>`);
+  if(cl&&cl.used) notes.push(`<p class="hint" style="margin:0">Friday catch-up: ${(cl.used/60).toFixed(1)} of ${(cl.cap/60).toFixed(1)} hours taken by missed sessions.</p>`);
   $('#view-planner').innerHTML=`<div class="panel">
-    <div class="panel-head">${weekNav()}<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-act="addSession">Plan study session</button><button class="btn primary" type="button" id="btnPlanWeek" title="${sampleFn?'':'Add a Claude API key under Settings &amp; backup to use this'}">Plan my week with Claude</button></div></div>
-    <div class="ribbon-meta"><span><b class="num">${hrs.toFixed(1)}</b> hours of study planned</span>${w&&w.kind!=='teach'?'<span>No classes run this week.</span>':''}<span>Solid blocks are classes; dashed blocks are your study sessions. Click one to edit it.</span></div>
+    <div class="panel-head">${weekNav()}<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-act="tplOpen">Weekly study template</button><button class="btn" type="button" data-act="addSession">Plan study session</button><button class="btn primary" type="button" id="btnPlanWeek" title="${sampleFn?'':'Add a Claude API key under Settings &amp; backup to use this'}">Plan my week with Claude</button></div></div>
+    ${notes.join('')}<div class="ribbon-meta"><span><b class="num">${hrs.toFixed(1)}</b> hours of study planned${deep&&deep!==hrs?`, <b class="num">${deep.toFixed(1)}</b> of it deep work`:''}</span>${w&&w.kind!=='teach'?'<span>No classes run this week.</span>':''}<span>Solid blocks are classes; dashed blocks are your study sessions. Click one to edit it.</span></div>
     <div id="planOut"></div>
     <div class="tt-wrap"><div class="planner" style="--hh:${HH}px">
       <div></div>${days.map((d,i)=>`<div class="dh${iso(d)===iso(t0)?' today':''}">${WDAYS[i]}<small>${fmtD(d,{day:'numeric',month:'short'})}</small></div>`).join('')}
@@ -540,7 +553,7 @@ function renderPlanner(){
         ${all[i].map(x=>{const top=px(toMin(x.start)), h=px(toMin(x.end))-top-2, col=x.c?.color||'accent';
           return x.kind==='class'
           ?`<button type="button" class="blk" data-act="editCourse" data-id="${x.c.id}" style="--cc:var(--${col});top:${top}px;height:${h}px"><b>${esc(x.c.code)}</b><em>${esc((x.label||'').slice(0,4))}</em><br>${esc(x.room||'')}<br><span class="num">${x.start}–${x.end}</span></button>`
-          :`<button type="button" class="blk session${x.s.done?' isdone':''}" data-act="editSession" data-id="${x.s.id}" style="--cc:var(--${col});top:${top}px;height:${h}px"><b>${esc(x.s.title)}</b><br><span class="num">${x.start}–${x.end}</span></button>`;}).join('')}
+          :`<button type="button" class="blk session${x.s.done?' isdone':''}" data-act="editSession" data-id="${x.s.id}" style="--cc:var(--${col});top:${top}px;height:${h}px"${x.s.from?` title="Missed on ${fmt(x.s.from,{weekday:'short',day:'numeric',month:'short'})}, moved to catch-up"`:''}><b>${x.s.from?'↻ ':''}${esc(x.s.title)}</b><br><span class="num">${x.start}–${x.end}</span></button>`;}).join('')}
         ${iso(d)===iso(t0)&&nowMin>lo&&nowMin<hi?`<div class="nowline" style="top:${px(nowMin)}px"></div>`:''}
       </div>`).join('')}
     </div></div></div>`;
@@ -1382,6 +1395,184 @@ function studyClick(a,b){
 }
 window.addEventListener('afterprint',()=>document.body.classList.remove('print-sheet'));
 
+/* ---------- study plan: weekly templates, Friday catch-up, calendar feed ---------- */
+// A template is a week of study blocks. The teaching template fills teaching weeks, the break template the mid-semester break.
+// Placing it writes ordinary study sessions (marked tpl) for the rest of the term, moved around any class they'd clash with.
+const BLOCK_KINDS={deep:'Deep work',light:'Light work',catchup:'Catch-up'};
+function blankPlan(){return {templates:{teach:[],brk:[]},daysOff:[],ics:null,applied:null};}
+function normPlan(x){
+  const b=blankPlan(); x=x&&typeof x==='object'?x:{};
+  const t=x.templates||{};
+  b.templates.teach=Array.isArray(t.teach)?t.teach:[]; b.templates.brk=Array.isArray(t.brk)?t.brk:[];
+  b.daysOff=Array.isArray(x.daysOff)?x.daysOff.filter(d=>/^\d{4}-\d\d-\d\d$/.test(d)):[];
+  b.ics=x.ics&&x.ics.gist?x.ics:null; b.applied=x.applied||null;
+  return b;
+}
+const PL=()=>state.plan;
+const mm=m=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+// Christmas Day is always off; anything else added under the template's days off.
+function isDayOff(ds){return ds.slice(5)==='12-25'||PL().daysOff.includes(ds);}
+function blockTitle(b){
+  if(b.title) return b.title;
+  if(b.kind==='catchup') return 'Catch-up: missed sessions';
+  if(b.kind==='light') return 'Light work: recordings, reading, wrap-up';
+  const c=course(b.courseId); return c?`${c.code}: deep work`:'Consolidation: shaky topics and mistakes';
+}
+const overlaps=(a0,a1,busy,pad=10)=>busy.some(([b0,b1])=>a0<b1+pad&&a1>b0-pad);
+// The nearest free start to `want` for a block of `len` minutes, between 08:00 and 22:00.
+function freeStart(want,len,busy){
+  if(!overlaps(want,want+len,busy)) return want;
+  let best=null;
+  for(let s=480;s+len<=1320;s+=15) if(!overlaps(s,s+len,busy)&&(best==null||Math.abs(s-want)<Math.abs(best-want))) best=s;
+  return best;
+}
+function classBusyOnWeekday(day){return state.courses.flatMap(c=>(c.meetings||[]).filter(m=>+m.day===day).map(m=>[toMin(m.start),toMin(m.end)]));}
+/* Builds a template around this week's classes: two 2-hour deep blocks a day Monday to Saturday (each unit three times a week),
+   a 1-hour light block most evenings, and a 2-hour catch-up block on Friday. The break template is 5 hours a day of deep work. */
+function autoTemplate(kind){
+  const us=[...state.courses].sort((a,b)=>a.code.localeCompare(b.code)).map(c=>c.id);
+  const pick=i=>us.length?us[i%us.length]:'';
+  const pairs=us.length>=4?[[0,1],[2,3],[0,2],[1,3],[0,3],[1,2]]:[[0,1],[2,0],[1,2],[0,1],[2,0],[1,2]];
+  const out=[], add=(day,start,len,kind,courseId)=>out.push({id:uid(),day,start:mm(start),end:mm(start+len),kind,courseId:courseId||''});
+  for(let day=0;day<6;day++){
+    const busy=kind==='teach'?classBusyOnWeekday(day):[];
+    const place=(want,len,k,cid)=>{const s=freeStart(want,len,busy);if(s!=null){busy.push([s,s+len]);add(day,s,len,k,cid);}};
+    const [a,b]=pairs[day];
+    if(kind==='teach'){
+      place(540,120,'deep',pick(a)); place(840,120,'deep',pick(b));
+      if(day===4) place(960,120,'catchup'); else place(1170,60,'light');
+    }else{
+      place(540,120,'deep',pick(a)); place(780,120,'deep',pick(b)); place(930,60,'deep','');
+    }
+  }
+  return out.sort((x,y)=>x.day-y.day||x.start.localeCompare(y.start));
+}
+/* Writes the templates into the planner from today to the end of term. Future template sessions you haven't edited or ticked
+   are replaced; anything you've changed, finished or added yourself is kept. */
+function applyTemplates(){
+  const t0=today0(), from=iso(t0), weeks=semesterWeeks();
+  state.sessions=state.sessions.filter(s=>!(s.tpl&&!s.done&&!s.edited&&!s.moved&&s.date>=from));
+  let n=0;
+  weeks.forEach(w=>{
+    const tpl=w.kind==='teach'?PL().templates.teach:w.kind==='brk'?PL().templates.brk:null; if(!tpl||!tpl.length) return;
+    for(let day=0;day<7;day++){
+      const d=addDays(w.ws,day), ds=iso(d); if(ds<from||isDayOff(ds)) continue;
+      const blocks=tpl.filter(b=>+b.day===day); if(!blocks.length) continue;
+      const busy=itemsOnDate(d).map(x=>[toMin(x.start),toMin(x.end)]);
+      blocks.forEach(b=>{
+        if(state.sessions.some(s=>s.tpl===b.id&&s.date===ds)) return;
+        const s0=toMin(b.start), len=toMin(b.end)-s0, at=freeStart(s0,len,busy); if(at==null||len<=0) return;
+        busy.push([at,at+len]);
+        state.sessions.push({id:uid(),courseId:b.courseId||'',taskId:null,date:ds,start:mm(at),end:mm(at+len),title:blockTitle(b),done:false,tpl:b.id,kind:b.kind});
+        n++;
+      });
+    }
+  });
+  PL().applied=from;
+  return n;
+}
+/* Missed sessions (an earlier day, not ticked) move to the next Friday catch-up block, never onto the next day.
+   They fill the block in order; one that's longer than the time left is shortened to fit (if at least 45 minutes are left).
+   Whatever doesn't fit stays where it was, and the planner says so: that's the cue to make next week's template lighter. */
+function moveMissed(){
+  const t0=today0(), today=iso(t0), now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
+  const missed=state.sessions.filter(s=>!s.done&&s.date<today&&s.kind!=='catchup').sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
+  let moved=0;
+  missed.forEach(s=>{
+    const cu=state.sessions.filter(c=>c.kind==='catchup'&&D(c.date).getDay()===5&&c.date>s.date&&(c.date>today||(c.date===today&&nowMin<toMin(c.end))))
+      .sort((a,b)=>a.date.localeCompare(b.date))[0];
+    if(!cu) return;
+    const used=state.sessions.filter(x=>x.moved&&x.date===cu.date&&x!==s).reduce((a,x)=>a+toMin(x.end)-toMin(x.start),0);
+    const left=toMin(cu.end)-toMin(cu.start)-used, len=Math.min(toMin(s.end)-toMin(s.start),left);
+    if(len<45) return;
+    const st=toMin(cu.start)+used;
+    Object.assign(s,{from:s.from||s.date,date:cu.date,start:mm(st),end:mm(st+len),moved:true});
+    moved++;
+  });
+  return moved;
+}
+function catchupLoad(ds){
+  const cu=state.sessions.find(c=>c.kind==='catchup'&&c.date===ds); if(!cu) return null;
+  const used=state.sessions.filter(x=>x.moved&&x.date===ds).reduce((a,x)=>a+toMin(x.end)-toMin(x.start),0);
+  return {cu,used,cap:toMin(cu.end)-toMin(cu.start)};
+}
+// Missed in the last fortnight and not moved, because the catch-up block was full.
+function unplacedMissed(){const t=iso(today0()),since=iso(addDays(today0(),-14));return state.sessions.filter(s=>!s.done&&s.date<t&&s.date>=since&&s.kind!=='catchup');}
+function planMaintenance(){if(moveMissed())commit();}
+
+/* ---------- template editor ---------- */
+let tplKind='teach';
+function templateDialog(kind){
+  if(!state.courses.length){courseDialog();return;}
+  tplKind=kind||tplKind;
+  let rows=JSON.parse(JSON.stringify(PL().templates[tplKind]));
+  if(!rows.length) rows=autoTemplate(tplKind);
+  const unitSel=(b)=>`<select data-f="courseId" aria-label="Unit"><option value="">${b.kind==='deep'?'General (consolidation)':'—'}</option>${state.courses.map(c=>`<option value="${c.id}"${c.id===b.courseId?' selected':''}>${esc(c.code)}</option>`).join('')}</select>`;
+  const draw=()=>{
+    const hrs=k=>rows.filter(b=>b.kind===k).reduce((a,b)=>a+(toMin(b.end)-toMin(b.start))/60,0);
+    const perUnit=state.courses.map(c=>`${esc(c.code)} <b class="num">${rows.filter(b=>b.kind==='deep'&&b.courseId===c.id).reduce((a,b)=>a+(toMin(b.end)-toMin(b.start))/60,0)}h</b>`).join(' · ');
+    const perDay=WDAYS.map((d,i)=>{const h=rows.filter(b=>+b.day===i&&b.kind==='deep').reduce((a,b)=>a+(toMin(b.end)-toMin(b.start))/60,0);return h?`${d} <b class="num">${h}h</b>`:'';}).filter(Boolean).join(' · ');
+    form.querySelector('#tp-rows').innerHTML=rows.map((b,i)=>`<div class="subrow tprow" data-i="${i}">
+      <select data-f="day" aria-label="Day">${WDAYS.map((d,k)=>`<option value="${k}"${k===+b.day?' selected':''}>${d}</option>`).join('')}</select>
+      <input type="time" data-f="start" value="${b.start}" aria-label="Start"><input type="time" data-f="end" value="${b.end}" aria-label="End">
+      <select data-f="kind" aria-label="Kind">${Object.entries(BLOCK_KINDS).map(([k,n])=>`<option value="${k}"${k===b.kind?' selected':''}>${n}</option>`).join('')}</select>
+      ${unitSel(b)}<button class="btn ghost" type="button" data-del="${i}" aria-label="Remove block">✕</button></div>`).join('')||'<p class="empty">No blocks.</p>';
+    form.querySelector('#tp-sum').innerHTML=`Deep work <b class="num">${hrs('deep')}h</b> a week (${perDay||'none'}). By unit: ${perUnit}. Light <b class="num">${hrs('light')}h</b>, catch-up <b class="num">${hrs('catchup')}h</b>.`;
+  };
+  openDialog(`<h2>Weekly study template</h2>
+    <div class="subnav" role="group" aria-label="Template"><button type="button" data-tk="teach" aria-pressed="${tplKind==='teach'}">Teaching weeks</button><button type="button" data-tk="brk" aria-pressed="${tplKind==='brk'}">Mid-semester break</button></div>
+    <span class="hint">${tplKind==='teach'?'Blocks are placed around your classes. Friday’s catch-up block is where missed sessions go.':'Used for the break week: about 5 hours a day of consolidation.'} Christmas Day is always left free. Sunday is free for your weekly review.</span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" id="tp-auto">Rebuild around my classes</button><button class="btn" type="button" id="tp-add">Add a block</button></div>
+    <div class="subrows" id="tp-rows"></div>
+    <span class="hint" id="tp-sum"></span>
+    <label class="field"><span class="label">Other days off</span><input id="tp-off" name="off" value="${esc(PL().daysOff.join(', '))}" placeholder="e.g. 2026-12-31"><span class="hint">Dates with no study blocks, separated by commas.</span></label>
+    <span class="hint">Saving fills your planner from today to the end of term. Sessions you’ve edited, ticked or added yourself are kept.</span>
+    ${actions('')}`,
+  fd=>{
+    for(const b of rows) if(toMin(b.end)<=toMin(b.start)) return `A ${WDAYS[b.day]} block ends before it starts.`;
+    PL().templates[tplKind]=rows.sort((x,y)=>x.day-y.day||x.start.localeCompare(y.start));
+    PL().daysOff=String(fd.get('off')||'').split(/[\s,]+/).filter(d=>/^\d{4}-\d\d-\d\d$/.test(d));
+    const n=applyTemplates(); commit(); setStatus(`Study blocks placed: ${n} sessions from today to the end of term.`);
+  });
+  form.querySelector('.actions .r button[type=submit]').textContent='Save and fill my planner';
+  form.querySelectorAll('[data-tk]').forEach(b=>b.onclick=()=>{PL().templates[tplKind]=rows;dlg.close();templateDialog(b.dataset.tk);});
+  form.querySelector('#tp-auto').onclick=()=>{rows=autoTemplate(tplKind);draw();};
+  form.querySelector('#tp-add').onclick=()=>{rows.push({id:uid(),day:5,start:'10:00',end:'12:00',kind:'deep',courseId:state.courses[0]?.id||''});draw();};
+  form.querySelector('#tp-rows').addEventListener('change',e=>{const r=e.target.closest('[data-i]'),f=e.target.dataset.f;if(!r||!f)return;const b=rows[+r.dataset.i];b[f]=f==='day'?+e.target.value:e.target.value;if(f==='kind'&&e.target.value!=='deep')b.courseId='';draw();});
+  form.querySelector('#tp-rows').addEventListener('click',e=>{const d=e.target.closest('[data-del]');if(d){rows.splice(+d.dataset.del,1);draw();}});
+  draw();
+}
+
+/* ---------- calendar feed (.ics in a second secret gist, so Outlook and phones can subscribe) ---------- */
+const ICS_FILE='semester-desk-study.ics', ICS_HASH='sd-ics-hash';
+function icsText(){
+  const esc2=s=>String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
+  const utc=(ds,hm)=>{const [y,m,d]=ds.split('-').map(Number),[h,mi]=hm.split(':').map(Number);return new Date(y,m-1,d,h,mi).toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'');};
+  const fold=l=>{const out=[];while(l.length>74){out.push(l.slice(0,74));l=' '+l.slice(74);}out.push(l);return out.join('\r\n');};
+  const since=iso(addDays(today0(),-14)), stamp=new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'');
+  const ev=state.sessions.filter(s=>s.date>=since).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start)).map(s=>{
+    const c=course(s.courseId), t=state.tasks.find(t=>t.id===s.taskId);
+    const desc=[c?`${c.code} ${c.name}`:'',t?`Working towards: ${t.title}`:'',s.from?`Moved from ${fmt(s.from,{weekday:'short',day:'numeric',month:'short'})}`:'',s.done?'Done':''].filter(Boolean).join('\n');
+    return ['BEGIN:VEVENT',`UID:${s.id}@semester-desk`,`DTSTAMP:${stamp}`,`DTSTART:${utc(s.date,s.start)}`,`DTEND:${utc(s.date,s.end)}`,
+      fold(`SUMMARY:${esc2((s.done?'✓ ':'')+s.title)}`),...(desc?[fold(`DESCRIPTION:${esc2(desc)}`)]:[]),
+      ...(s.done?[]:['BEGIN:VALARM','ACTION:DISPLAY',fold(`DESCRIPTION:${esc2(s.title)}`),'TRIGGER:-PT10M','END:VALARM']),'END:VEVENT'].join('\r\n');
+  });
+  return ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Semester Desk//Study sessions//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:Study sessions','X-PUBLISHED-TTL:PT1H','REFRESH-INTERVAL;VALUE=DURATION:PT1H',...ev,'END:VCALENDAR'].join('\r\n')+'\r\n';
+}
+const icsHash=t=>{const s=t.replace(/^DTSTAMP:.*$/gm,'');let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return String(h);};
+async function pushIcs(force){
+  const f=PL().ics; if(!cloudOn()||!f?.gist) return;
+  const txt=icsText(), h=icsHash(txt);
+  if(!force&&lsGet(ICS_HASH)===h) return;
+  await gh('/gists/'+f.gist,{method:'PATCH',body:JSON.stringify({files:{[ICS_FILE]:{content:txt}}})});
+  lsSet(ICS_HASH,h);
+}
+async function makeIcsFeed(){
+  const g=await gh('/gists',{method:'POST',body:JSON.stringify({public:false,description:'Semester Desk study sessions (calendar feed)',files:{[ICS_FILE]:{content:icsText()}}})});
+  PL().ics={gist:g.id,url:`https://gist.githubusercontent.com/${g.owner.login}/${g.id}/raw/${ICS_FILE}`};
+  lsSet(ICS_HASH,icsHash(icsText())); commit();
+}
+
 /* ---------- render/router ---------- */
 function render(){
   renderHeader();
@@ -1462,6 +1653,7 @@ function sessionDialog(s,forTask,preset){
   fd=>{
     const title=fd.get('title').trim(); if(!title) return 'Say what the session is for.';
     if(fd.get('end')<=fd.get('start')) return 'The session must finish after it starts.';
+    if(s.tpl&&!isNew&&(title!==s.title||fd.get('date')!==s.date||fd.get('start')!==s.start||fd.get('end')!==s.end||fd.get('courseId')!==s.courseId||(fd.get('taskId')||null)!==s.taskId)) s.edited=true;
     Object.assign(s,{title,date:fd.get('date'),start:fd.get('start'),end:fd.get('end'),courseId:fd.get('courseId'),taskId:fd.get('taskId')||null,done:!!fd.get('done')});
     if(isNew) state.sessions.push(s);
     commit();
@@ -1598,6 +1790,8 @@ document.addEventListener('click',e=>{
   if(a==='addCourse') courseDialog();
   if(a==='addSession') sessionDialog();
   if(a==='editSession') sessionDialog(state.sessions.find(x=>x.id===id));
+  if(a==='sesToggle'){const x=state.sessions.find(x=>x.id===id);if(x){x.done=!x.done;commit();}}
+  if(a==='tplOpen') templateDialog('teach');
   if(a==='cwToggle'){const x=state.classwork.find(x=>x.id===id);x.done=!x.done;commit();}
   if(a==='cwDel'){state.classwork=state.classwork.filter(x=>x.id!==id);commit();}
 });
@@ -1678,6 +1872,7 @@ async function cloudSync(){
       await gh('/gists/'+g.id,{method:'PATCH',body:JSON.stringify({files:{[GIST_FILE]:{content:JSON.stringify(state)}}})});
     }
     cloudReady=true; setStatus(`Saved and synced across your devices at ${clock()}.`);
+    pushIcs().catch(()=>{});
   }catch(e){setStatus(e.message||'Couldn’t reach GitHub to sync. Your changes are saved on this device and will sync later.');throw e;}
   finally{cloudBusy=false;}
 }
@@ -1702,11 +1897,12 @@ async function init(){
   if(m){lsSet(GH_TOKEN,decodeURIComponent(m[1]));history.replaceState(null,'',location.pathname+location.search);}
   const hadLocal=loadLocal();
   if(cloudOn()){try{await cloudSync();}catch{}}
+  planMaintenance();
   if(!hadLocal&&!state.updatedAt&&!(await loadSeed())){render();setStatus('Ready. Your planner saves on this device.');}
   try{navigator.storage?.persist?.();}catch{}
   if(feedUrl()) syncFeed({quiet:true}).catch(()=>{});
   window.addEventListener('pagehide',save);
-  document.addEventListener('visibilitychange',()=>{if(document.hidden)save();else if(cloudOn()&&!dlg.open)cloudSync().catch(()=>{});});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)save();else{if(!dlg.open)planMaintenance();if(cloudOn()&&!dlg.open)cloudSync().catch(()=>{});}});
   window.addEventListener('storage',e=>{if(e.key===STORE_KEY&&e.newValue&&e.newValue!==lastSaved){try{state=normalise(JSON.parse(e.newValue));lastSaved=e.newValue;if(!dlg.open)render();}catch{}}});
   if('serviceWorker' in navigator&&location.protocol!=='file:') navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
@@ -1823,6 +2019,13 @@ function settingsDialog(){
       :`<input id="st-gh" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…">
       <span class="hint">Paste a GitHub token that can read and write gists, then press <i>Turn on sync</i>. The README explains how to make one. Do this once in each browser you use. Your planner is kept in a secret gist that only appears in your GitHub account.</span>
       <div><button class="btn" type="button" id="st-cloudon">Turn on sync</button></div>`}</div>
+    <div class="field"><span class="label">Study sessions in your phone or Outlook calendar</span>
+      ${!cloudOn()?'<span class="hint">Turn on <i>Sync across devices</i> first. The calendar feed is kept in your GitHub account next to your synced planner.</span>'
+      :PL().ics?`<span class="hint">Subscribe to this link once on each calendar. Your study sessions then show up there with a reminder 10 minutes before each, and they update when you change them here (calendars refresh every hour or few). Anyone with the link can see your study sessions, so keep it private.</span>
+      <input id="st-ics" type="text" readonly value="${esc(PL().ics.url)}">
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" id="st-icscopy">Copy link</button><a class="btn" href="${esc(PL().ics.url.replace(/^https:/,'webcal:'))}">Add to this device’s calendar</a><button class="btn" type="button" id="st-icspush">Update it now</button></div>
+      <span class="hint"><b>Outlook:</b> Add calendar → Subscribe from web, paste the link. <b>iPhone:</b> Settings → Calendar → Accounts → Add Account → Other → Add Subscribed Calendar. <b>Android / Google Calendar:</b> on a computer, Other calendars → + → From URL.</span>`
+      :`<span class="hint">Makes a private calendar link with your planned study sessions, so your phone can remind you before each one.</span><div><button class="btn" type="button" id="st-icsmake">Make my calendar link</button></div>`}</div>
     <div class="field"><span class="label">Timetable calendar link (optional)</span>
       <input id="st-feed" name="feed" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://…/cal/your-file.ics" value="${esc(feedUrl())}">
       <span class="hint">Your classes and exams are refreshed from this link every time the Desk opens. Classes you add by hand are kept. An Outlook or QUT link can’t be read by the browser directly, so use the address from the GitHub sync (see the README).${state.feed?.lastSync?` Last synced ${new Date(state.feed.lastSync).toLocaleString(LOC,{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}${state.feed.summary?': '+esc(state.feed.summary):''}.`:''}${state.feed?.lastError?` <b style="color:var(--bad)">${esc(state.feed.lastError)}</b>`:''}</span>
@@ -1851,6 +2054,9 @@ function settingsDialog(){
     try{await cloudSync();cmsg('Sync is on. This browser now shares the planner with your other devices.');setTimeout(settingsDialog,900);}
     catch(e){lsSet(GH_TOKEN,'');cloudReady=false;cmsg(e.message);}
   });
+  form.querySelector('#st-icsmake')?.addEventListener('click',async()=>{cmsg('Making your calendar link…');try{await makeIcsFeed();settingsDialog();form.querySelector('#st-msg').textContent='Calendar link ready. Subscribe to it on your phone and in Outlook.';}catch(e){cmsg(e.message);}});
+  form.querySelector('#st-icscopy')?.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(PL().ics.url);cmsg('Calendar link copied.');}catch{form.querySelector('#st-ics').select();}});
+  form.querySelector('#st-icspush')?.addEventListener('click',async()=>{cmsg('Updating…');try{await pushIcs(true);cmsg(`Calendar updated at ${clock()}.`);}catch(e){cmsg(e.message);}});
   form.querySelector('#st-cloudnow')?.addEventListener('click',async()=>{cmsg('Syncing…');try{await cloudSync();cmsg(`Synced at ${clock()}.`);}catch(e){cmsg(e.message);}});
   form.querySelector('#st-cloudlink')?.addEventListener('click',async()=>{
     const link=location.origin+location.pathname+'#sync='+encodeURIComponent(lsGet(GH_TOKEN));
