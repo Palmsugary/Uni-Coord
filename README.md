@@ -25,11 +25,26 @@ Canvas releases content week by week, so download the course again each week and
 
 Open the GitHub Pages address (see *Publishing* below). On a phone, choose **Add to Home Screen** (iPhone) or **Install app** (Android or Chrome). It then opens like a normal app and keeps working offline.
 
-The first time it opens, it loads your current semester from `seed.json`: the four units, your term dates and the weekly study items. After that, every change is saved in that browser on that device.
+The first time it opens, it loads your current semester from `seed.json`: the four units, your term dates and the weekly study items. After that, every change is saved in that browser, and synced to your other devices if you turn on sync (see below).
 
-### Moving between devices
+### Using it on several devices
 
-Your data lives only in the browser where you use the app. To move it to another phone or computer, open **Settings & backup**, press **Download backup** on the old device, then press **Restore from backup** on the new one. Downloading a backup now and then is also a good safeguard against a cleared browser.
+Turn on **Sync across devices** and the Desk keeps one copy of your planner in your GitHub account, so your laptop, desktop and phone all show the same thing. Each change syncs a moment after you make it, and the Desk checks for changes from your other devices whenever you open it or switch back to it. If two devices change it at once, the most recent change wins.
+
+**Setting it up (once):**
+1. **Make a token.** On GitHub, open [Fine-grained personal access tokens → Generate new token](https://github.com/settings/personal-access-tokens/new).
+   - **Name:** Semester Desk sync.
+   - **Expiration:** pick a date after your exams (or a year out).
+   - **Permissions:** under *Account permissions*, set **Gists** to **Read and write**. Leave everything else as it is.
+   - Press **Generate token** and copy it.
+2. **Turn on sync on your main device.** In the Desk, open **Settings & backup**, paste the token under **Sync across devices**, and press **Turn on sync**. This makes a secret gist holding your planner.
+3. **Add your other devices.** On the main device, press **Copy setup link for another device**. Send the link to yourself (a note or an email to yourself) and open it in each other browser, such as Edge on your laptop or Safari on your phone. That browser picks up your planner and stays in sync.
+
+**Good to know:**
+- **Privacy:** a secret gist doesn't show up in searches or on your public profile, but anyone who has its address can read it. The setup link and token work like a password, so keep them to yourself.
+- **What isn't synced:** the Claude API key stays in each browser. Your calendar link *is* synced, so the timetable refreshes on every device.
+- **If the token expires:** the Desk says so at the bottom of the page. Make a new token, choose **Turn off in this browser**, then paste the new one.
+- **Backups:** **Download backup** and **Restore from backup** still work, and a backup now and then is a good safeguard.
 
 ### Optional Claude features
 

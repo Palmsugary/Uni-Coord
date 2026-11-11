@@ -1211,9 +1211,68 @@ function commit(){
   render(); clearTimeout(saveTimer); saveTimer=setTimeout(save,500);
 }
 function save(){
-  const body=JSON.stringify(state); if(body===lastSaved) return;
-  try{localStorage.setItem(STORE_KEY,body);lastSaved=body;setStatus('Saved on this device.');}
+  const core=JSON.stringify({...state,updatedAt:0});
+  if(core===JSON.stringify({...JSON.parse(lastSaved||'{}'),updatedAt:0})) return;
+  state.updatedAt=Date.now();
+  const body=JSON.stringify(state);
+  try{localStorage.setItem(STORE_KEY,body);lastSaved=body;setStatus(cloudOn()?'Saved. Syncing…':'Saved on this device.');}
   catch{setStatus('Couldn’t save: this browser is blocking storage. Download a backup under Settings & backup.');}
+  schedulePush();
+}
+
+/* ---------- sync across devices (a secret GitHub Gist, with the user's own token) ---------- */
+const GH_TOKEN='sd-gh-token', GH_GIST='sd-gist-id', GIST_FILE='semester-desk.json', GH='https://api.github.com';
+let cloudReady=false, pushTimer=null, cloudBusy=false;
+const lsGet=k=>{try{return localStorage.getItem(k)||'';}catch{return '';}};
+const lsSet=(k,v)=>{try{v?localStorage.setItem(k,v):localStorage.removeItem(k);}catch{}};
+const cloudOn=()=>!!lsGet(GH_TOKEN);
+const clock=()=>new Date().toLocaleTimeString(LOC,{hour:'numeric',minute:'2-digit'});
+async function gh(path,opt={}){
+  const r=await fetch(GH+path,{...opt,cache:'no-store',headers:{Accept:'application/vnd.github+json',Authorization:'Bearer '+lsGet(GH_TOKEN),...(opt.body?{'Content-Type':'application/json'}:{})}});
+  if(r.status===401) throw new Error('GitHub didn’t accept the sync token. It may have expired: make a new one and paste it under Settings & backup.');
+  if(r.status===403||r.status===404&&!path.startsWith('/gists/')) throw new Error('The sync token can’t reach your gists. Check it has the Gists read and write permission.');
+  if(!r.ok) throw Object.assign(new Error(`GitHub sync failed (${r.status}).`),{status:r.status});
+  return r.json();
+}
+async function readGist(g){
+  const f=g.files&&g.files[GIST_FILE]; if(!f) return null;
+  const txt=f.truncated?await (await fetch(f.raw_url,{cache:'no-store'})).text():f.content;
+  try{const d=JSON.parse(txt);return d&&d.v>=2&&Array.isArray(d.courses)?d:null;}catch{return null;}
+}
+/* Finds this person's Desk gist, or makes one from this device's planner. */
+async function findGist(){
+  let id=lsGet(GH_GIST);
+  if(id){try{return await gh('/gists/'+id);}catch(e){if(e.status!==404)throw e;lsSet(GH_GIST,'');}}
+  for(let page=1;page<=10;page++){
+    const list=await gh(`/gists?per_page=100&page=${page}`);
+    const hit=list.find(g=>g.files&&g.files[GIST_FILE]);
+    if(hit){lsSet(GH_GIST,hit.id);return gh('/gists/'+hit.id);}
+    if(list.length<100) break;
+  }
+  const g=await gh('/gists',{method:'POST',body:JSON.stringify({public:false,description:'Semester Desk planner data (synced between your devices)',files:{[GIST_FILE]:{content:JSON.stringify(state)}}})});
+  lsSet(GH_GIST,g.id); return g;
+}
+/* Takes whichever copy was changed most recently: this device's or the one on GitHub. */
+async function cloudSync(){
+  if(!cloudOn()||cloudBusy) return;
+  cloudBusy=true;
+  try{
+    const g=await findGist(), remote=await readGist(g);
+    const mine=+state.updatedAt||0, theirs=+(remote&&remote.updatedAt)||0;
+    if(remote&&theirs>mine){
+      state=normalise(remote); lastSaved=JSON.stringify(state);
+      try{localStorage.setItem(STORE_KEY,lastSaved);}catch{}
+      if(!dlg.open) render();
+    }else if(!remote||mine>theirs){
+      await gh('/gists/'+g.id,{method:'PATCH',body:JSON.stringify({files:{[GIST_FILE]:{content:JSON.stringify(state)}}})});
+    }
+    cloudReady=true; setStatus(`Saved and synced across your devices at ${clock()}.`);
+  }catch(e){setStatus(e.message||'Couldn’t reach GitHub to sync. Your changes are saved on this device and will sync later.');throw e;}
+  finally{cloudBusy=false;}
+}
+function schedulePush(){
+  if(!cloudOn()||!cloudReady) return;
+  clearTimeout(pushTimer); pushTimer=setTimeout(()=>cloudSync().catch(()=>{}),1500);
 }
 function loadLocal(){
   try{const s=localStorage.getItem(STORE_KEY);if(s){state=normalise(JSON.parse(s));lastSaved=s;setStatus('Saved on this device.');render();return true;}}catch{}
@@ -1227,11 +1286,16 @@ async function init(){
   try{view=localStorage.getItem('sd-view')||'overview';}catch{}
   setView(view);
   setupClaude();
-  if(!loadLocal()&&!(await loadSeed())){render();setStatus('Ready. Your planner saves on this device.');}
+  /* A setup link (…#sync=<token>) turns sync on in a new browser in one tap. The part after # never leaves the device. */
+  const m=location.hash.match(/[#&]sync=([^&]+)/);
+  if(m){lsSet(GH_TOKEN,decodeURIComponent(m[1]));history.replaceState(null,'',location.pathname+location.search);}
+  const hadLocal=loadLocal();
+  if(cloudOn()){try{await cloudSync();}catch{}}
+  if(!hadLocal&&!state.updatedAt&&!(await loadSeed())){render();setStatus('Ready. Your planner saves on this device.');}
   try{navigator.storage?.persist?.();}catch{}
   if(feedUrl()) syncFeed({quiet:true}).catch(()=>{});
   window.addEventListener('pagehide',save);
-  document.addEventListener('visibilitychange',()=>{if(document.hidden)save();});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)save();else if(cloudOn()&&!dlg.open)cloudSync().catch(()=>{});});
   window.addEventListener('storage',e=>{if(e.key===STORE_KEY&&e.newValue&&e.newValue!==lastSaved){try{state=normalise(JSON.parse(e.newValue));lastSaved=e.newValue;if(!dlg.open)render();}catch{}}});
   if('serviceWorker' in navigator&&location.protocol!=='file:') navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
@@ -1338,10 +1402,16 @@ function settingsDialog(){
   const key=getKey();
   openDialog(`<h2>Settings &amp; backup</h2>
     <div class="field"><span class="label">Where your planner is saved</span>
-      <span class="hint">Everything is stored in this browser on this device. Nothing is sent anywhere unless you use the Claude features below. To move it to another device, download a backup here and restore it there.</span>
+      <span class="hint">Everything is stored in this browser on this device${cloudOn()?', and synced to your GitHub account':''}. A backup file is a good safeguard either way.</span>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" id="st-export">Download backup</button>
       <label class="btn" style="display:inline-flex;align-items:center">Restore from backup<input type="file" id="st-import" accept=".json,application/json" hidden></label></div>
       <span class="hint" id="st-msg" role="status"></span></div>
+    <div class="field"><span class="label">Sync across devices</span>
+      ${cloudOn()?`<span class="hint">On. This browser syncs with a secret gist in your GitHub account every time you make a change or come back to the Desk. To add another device or browser, copy the setup link and open it there. Keep that link private, like a password.</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" id="st-cloudnow">Sync now</button><button class="btn" type="button" id="st-cloudlink">Copy setup link for another device</button><button class="btn ghost" type="button" id="st-cloudoff">Turn off in this browser</button></div>`
+      :`<input id="st-gh" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…">
+      <span class="hint">Paste a GitHub token that can read and write gists, then press <i>Turn on sync</i>. The README explains how to make one. Do this once in each browser you use. Your planner is kept in a secret gist that only appears in your GitHub account.</span>
+      <div><button class="btn" type="button" id="st-cloudon">Turn on sync</button></div>`}</div>
     <div class="field"><span class="label">Timetable calendar link (optional)</span>
       <input id="st-feed" name="feed" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://…/cal/your-file.ics" value="${esc(feedUrl())}">
       <span class="hint">Your classes and exams are refreshed from this link every time the Desk opens. Classes you add by hand are kept. An Outlook or QUT link can’t be read by the browser directly, so use the address from the GitHub sync (see the README).${state.feed?.lastSync?` Last synced ${new Date(state.feed.lastSync).toLocaleString(LOC,{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}${state.feed.summary?': '+esc(state.feed.summary):''}.`:''}${state.feed?.lastError?` <b style="color:var(--bad)">${esc(state.feed.lastError)}</b>`:''}</span>
@@ -1363,6 +1433,20 @@ function settingsDialog(){
     msg.textContent='Syncing…';
     try{const s=await syncFeed({quiet:true});msg.textContent=`Synced: ${s}.`;}catch(e){msg.textContent=e.message;}
   };
+  const cmsg=t=>{form.querySelector('#st-msg').textContent=t;};
+  form.querySelector('#st-cloudon')?.addEventListener('click',async()=>{
+    const t=form.querySelector('#st-gh').value.trim(); if(!t){cmsg('Paste a GitHub token first.');return;}
+    lsSet(GH_TOKEN,t); cmsg('Connecting to GitHub…');
+    try{await cloudSync();cmsg('Sync is on. This browser now shares the planner with your other devices.');setTimeout(settingsDialog,900);}
+    catch(e){lsSet(GH_TOKEN,'');cloudReady=false;cmsg(e.message);}
+  });
+  form.querySelector('#st-cloudnow')?.addEventListener('click',async()=>{cmsg('Syncing…');try{await cloudSync();cmsg(`Synced at ${clock()}.`);}catch(e){cmsg(e.message);}});
+  form.querySelector('#st-cloudlink')?.addEventListener('click',async()=>{
+    const link=location.origin+location.pathname+'#sync='+encodeURIComponent(lsGet(GH_TOKEN));
+    try{await navigator.clipboard.writeText(link);cmsg('Setup link copied. Send it to yourself (for example in a note or email to yourself) and open it on the other device. Keep it private: it works like a password.');}
+    catch{prompt('Copy this setup link and open it on your other device. Keep it private.',link);}
+  });
+  form.querySelector('#st-cloudoff')?.addEventListener('click',()=>{lsSet(GH_TOKEN,'');lsSet(GH_GIST,'');cloudReady=false;setStatus('Saved on this device.');settingsDialog();});
   form.querySelector('#st-export').onclick=()=>{download(`semester-desk-backup-${iso(today0())}.json`,JSON.stringify(state,null,2));form.querySelector('#st-msg').textContent='Backup downloaded.';};
   form.querySelector('#st-import').onchange=async e=>{
     const f=e.target.files[0]; if(!f) return;
