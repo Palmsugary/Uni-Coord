@@ -434,7 +434,7 @@ function taskRow(t,{stage=true}={}){
   return `<div class="row${done?' isdone':''}" style="--cc:var(--${c?.color||'accent'})">
     <button class="check" type="button" data-act="toggle" data-id="${t.id}" aria-pressed="${done}" aria-label="Mark ${esc(t.title)} ${done?'not submitted':'submitted'}">${done?tick:''}</button>
     <div class="t"><span class="title">${esc(t.title)}</span>
-      <span class="meta">${chip(c)}<span>${esc(t.type)}</span><span>·</span><span class="num">${fmt(t.due,{weekday:'short',day:'numeric',month:'short'})}</span>${score?'<span>·</span>'+score:''}${isHurdle(t)?'<span class="pill hurdle">Hurdle</span>':''}${ns?`<span>· ${ns} study session${ns>1?'s':''}</span>`:''}${(()=>{const cov=coveredBy(t),weak=cov.filter(tp=>{const l=topicState(t.courseId,tp).level;return l===1||l===2;}).length,nn=state.study.notes.filter(n=>(n.taskIds||[]).includes(t.id)).length;return (cov.length&&!done?`<span>· ${cov.length} topic${cov.length>1?'s':''}${weak?`, <b style="color:var(--warn)">${weak} weak</b>`:''}</span>`:'')+(nn?`<span>· ${nn} summar${nn>1?'ies':'y'}</span>`:'');})()}</span>
+      <span class="meta">${chip(c)}<span>${esc(t.type)}</span><span>·</span><span class="num">${fmt(t.due,{weekday:'short',day:'numeric',month:'short'})}</span>${score?'<span>·</span>'+score:''}${isHurdle(t)?'<span class="pill hurdle">Hurdle</span>':''}${ns?`<span>· ${ns} study session${ns>1?'s':''}</span>`:''}${(()=>{const cov=coveredBy(t),weak=cov.filter(tp=>{const l=topicState(t.courseId,tp).level;return l===1||l===2;}).length,nn=state.study.notes.filter(n=>(n.taskIds||[]).includes(t.id)).length;const cr=criteriaOf(t);return (cr.length?`<span>· criteria ${cr.filter(r=>r.done).length}/${cr.length}</span>`:'')+(cov.length&&!done?`<span>· ${cov.length} topic${cov.length>1?'s':''}${weak?`, <b style="color:var(--warn)">${weak} weak</b>`:''}</span>`:'')+(nn?`<span>· ${nn} summar${nn>1?'ies':'y'}</span>`:'');})()}</span>
       ${t.notes?`<span class="meta">${esc(t.notes)}</span>`:''}</div>
     <div class="end">${stage?`<span class="stage">${stageSel(t)}${stageBar(t)}</span>`:''}<span class="pill ${di.cls}">${di.txt}</span><button class="btn ghost" type="button" data-act="noteTask" data-id="${t.id}" title="Write a short summary for this">+ Note</button><button class="btn ghost" type="button" data-act="editTask" data-id="${t.id}">Edit</button></div>
   </div>`;
@@ -501,8 +501,9 @@ function renderOverview(){
       ${later.length?`<div class="label" style="padding-top:6px">Later</div><div class="list">${later.map(t=>taskRow(t)).join('')}</div>`:''}
     </div>
     <div class="grid" style="align-content:start">
-      <div class="panel"><div class="panel-head"><h2>Next up</h2><button class="btn ghost" type="button" data-act="studyNext">Study →</button></div>
-        <div class="list">${nextUp().slice(0,4).map(x=>nextRow(x,true)).join('')||'<p class="empty">Nothing waiting.</p>'}</div></div>
+      ${(()=>{const beh=state.courses.map(c=>({c,why:behindReasons(c)})).filter(x=>x.why.length), wkend=t0.getDay()===0||t0.getDay()===6;
+        return (beh.length?`<div class="panel" style="border-color:var(--warn)"><div class="panel-head"><h2>Behind</h2></div><div class="list">${beh.map(x=>`<div class="row" style="grid-template-columns:1fr auto"><div class="t"><span class="title">${chip(x.c)} ${esc(x.c.name)}</span><span class="why">${esc(x.why.join('; '))}. Extra hour booked Saturday.</span></div><button class="btn ghost" type="button" data-act="studyPage" data-id="${x.c.id}">Open</button></div>`).join('')}</div></div>`:'')
+          +(wkend?`<div class="panel"><div class="panel-head"><h2>Weekly review</h2><button class="btn primary" type="button" data-act="studyReview">Start</button></div><p class="hint" style="margin:0">Tick off this week, check what’s behind, and put next week’s focus into your study blocks.</p></div>`:'');})()}
       <div class="panel"><div class="panel-head"><h2>Today</h2><button class="btn ghost" type="button" data-goto="planner">Week planner →</button></div>
         <div class="list">${today.map(x=>x.kind==='class'
           ?`<div class="row" style="grid-template-columns:auto 1fr"><span class="num" style="font-size:13px">${x.start}</span><div class="t"><span class="title">${esc(x.label)} · ${esc(x.c.name)}</span><span class="meta">${chip(x.c)}<span>${esc(x.room||'')}</span><span class="num">until ${x.end}</span></span></div></div>`
@@ -641,7 +642,8 @@ function renderCourses(){
       ${(c.content||[]).length?`<details><summary class="label" style="cursor:pointer">Unit content · ${c.content.length} topics</summary><ul style="margin:6px 0 0;padding-left:18px;font-size:13px;display:flex;flex-direction:column;gap:3px">${c.content.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></details>`:''}
       ${(c.links||[]).length?`<div class="kv">${c.links.map(l=>`<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title)}</a>`).join('')}</div>`:''}
       <table class="wtable"><tbody>${g.rows.map(r=>`<tr><td>${esc(r.name)}${r.hurdle?' <span class="pill hurdle">Hurdle</span>':''}</td><td>${r.weight}%</td><td style="width:64px">${r.pct!=null?r.pct.toFixed(1):'—'}</td></tr>`).join('')}</tbody></table>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-act="editCourse" data-id="${c.id}">Edit unit</button><button class="btn" type="button" data-act="addTaskFor" data-id="${c.id}">Add assessment</button><button class="btn" type="button" data-act="studyUnit" data-id="${c.id}">Study topics${(n=>n?` · ${n} weak`:'')(weakTopics(c.id).length)}</button></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-act="editCourse" data-id="${c.id}">Edit unit</button><button class="btn" type="button" data-act="addTaskFor" data-id="${c.id}">Add assessment</button><button class="btn" type="button" data-act="studyUnit" data-id="${c.id}">Unit page${(n=>n?` · ${n} weak topic${n>1?'s':''}`:'')(weakTopics(c.id).length)}</button></div>
+      <span class="hint">${targetLine(c)}${behindReasons(c).length?` <b style="color:var(--warn)">Behind: ${esc(behindReasons(c).join('; '))}.</b>`:''}</span>
     </div>`;
   }).join('');
   el.innerHTML=`<div class="bands"><span class="label">Grade bands</span>${BANDS.map(([min,k,n,g7,g4,max])=>`<span><b>${k}</b> ${n} <span class="num">${min?`${min}–${max}`:'<25'}%</span>${state.term.gpaScale===4?` <span class="num">(${g4})</span>`:''}</span>`).join('')}<span>Grades 3, 2 and 1 are fails. K (Withdrawn - Failure) counts as 1 in your GPA; S, U, E, A, SA, DA and T are left out. GPA on the ${scaleTxt} scale; change it under Semester dates.</span></div>
@@ -1048,12 +1050,12 @@ Suggest 5 to 9 focused sessions of 1 to 2.5 hours between 08:00 and 21:00, with 
 const STUDY_DATA=window.SD_STUDY_DATA||{units:[],packs:{}};
 const LEVELS=[{n:'Not rated',c:'muted'},{n:'Not yet',c:'bad'},{n:'Shaky',c:'warn'},{n:'OK',c:'accent'},{n:'Solid',c:'ok'}];
 const WHY=['Didn’t understand the concept','Careless slip','Misread the question','Units or significant figures','Ran out of time','Other'];
-const STUDY_SECS=[['next','Next up'],['notes','Summaries'],['formulas','Formula sheet'],['topics','Topics & weak areas'],['units','SI units']];
-function blankStudy(){return {notes:[],formulas:[],units:[],topics:{},extraTopics:[],covers:{},mistakes:[],queue:[],snooze:{},packs:[]};}
+const STUDY_SECS=[['review','Sunday review'],['index','Lecture index'],['unit','Unit pages'],['formulas','Formula sheet'],['topics','Topics & mistakes'],['units','SI units']];
+function blankStudy(){return {notes:[],formulas:[],units:[],topics:{},extraTopics:[],covers:{},mistakes:[],queue:[],snooze:{},packs:[],pages:{},targets:{},criteria:{},release:{}};}
 function normStudy(x){
   const b=blankStudy(); x=x&&typeof x==='object'?x:{};
   for(const k of ['notes','formulas','units','extraTopics','mistakes','queue','packs']) b[k]=Array.isArray(x[k])?x[k]:[];
-  for(const k of ['topics','covers','snooze']) b[k]=x[k]&&typeof x[k]==='object'&&!Array.isArray(x[k])?x[k]:{};
+  for(const k of ['topics','covers','snooze','pages','targets','criteria','release']) b[k]=x[k]&&typeof x[k]==='object'&&!Array.isArray(x[k])?x[k]:{};
   return b;
 }
 const SD=()=>state.study;
@@ -1062,7 +1064,8 @@ const normT=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
 const topicKey=(cid,t)=>cid+'|'+t;
 function topicsFor(c){
   if(!c) return [];
-  const own=(c.content||[]).map(String);
+  // Without a Canvas content list, a unit's topics come from its Weekly work items titled "Topic: …" (as in the schedule imports).
+  const own=(c.content||[]).length?c.content.map(String):[...new Set(state.classwork.filter(x=>x.courseId===c.id&&/^topic:\s*/i.test(x.title)).sort((a,b)=>a.weekOf.localeCompare(b.weekOf)).map(x=>x.title.replace(/^topic:\s*/i,'').trim()))];
   return [...own,...SD().extraTopics.filter(x=>x.courseId===c.id&&!own.includes(x.title)).map(x=>x.title)];
 }
 function matchTopic(c,label){const n=normT(label);if(!n)return null;return topicsFor(c).find(t=>{const m=normT(t);return m===n||m.startsWith(n)||n.startsWith(m);})||null;}
@@ -1154,13 +1157,6 @@ function nextUp(cid){
     if(s){x.planned=s;x.score-=25;x.why+=` · session planned ${fmt(s.date,{weekday:'short',day:'numeric',month:'short'})} ${s.start}`;}});
   return out.filter(x=>!snoozed(x.key)).sort((a,b)=>b.score-a.score);
 }
-function nextRow(x,compact){
-  const btn=(act,label,extra='')=>`<button class="btn${act==='nxSnooze'?' ghost':''}" type="button" data-act="${act}" data-key="${esc(x.key)}"${extra}>${label}</button>`;
-  const main=x.kind==='cw'?btn('nxDone','Done'):x.kind==='task'?btn('nxOpen','Open'):x.kind==='topic'?btn('nxPractised','Practised'):btn('nxDone','Done');
-  return `<div class="row${compact?' compact':''}" style="--cc:var(--${x.c?.color||'accent'});grid-template-columns:${compact?'1fr':'1fr auto'}">
-    <div class="t"><span class="title">${esc(x.title)}</span><span class="meta">${chip(x.c)}<span class="kind">${{cw:'Class work',task:'Assessment',topic:'Weak topic',q:'Your list'}[x.kind]}</span></span><span class="why">${esc(x.why)}</span></div>
-    <div class="end">${main}${btn('nxPlan','Plan it','title="Book a study session for this"')}${compact?'':btn('nxSnooze','Snooze','title="Hide until tomorrow"')}</div></div>`;
-}
 function snooze(key){const t=todayIso();for(const k in SD().snooze)if(SD().snooze[k]<=t)delete SD().snooze[k];SD().snooze[key]=iso(addDays(today0(),1));}
 function nextAction(a,key){
   const x=nextUp().find(x=>x.key===key); if(!x) return;
@@ -1172,8 +1168,9 @@ function nextAction(a,key){
 }
 
 /* ---------- study view ---------- */
-let study={sec:'next',unit:'all',q:'',week:'all'};
+let study={sec:'index',unit:'all',q:'',week:'all'};
 try{study=Object.assign(study,JSON.parse(localStorage.getItem('sd-study')||'{}'),{q:''});}catch{}
+if(!STUDY_SECS.some(([k])=>k===study.sec)) study.sec=study.sec==='next'?'review':'index';
 const keepStudy=()=>{try{localStorage.setItem('sd-study',JSON.stringify({sec:study.sec,unit:study.unit}));}catch{}};
 const unitSel=()=>study.unit!=='all'&&course(study.unit)?study.unit:null;
 const hasQ=(...xs)=>!study.q||xs.some(x=>String(x||'').toLowerCase().includes(study.q));
@@ -1197,42 +1194,66 @@ function renderStudy(){
 }
 function renderStudyBody(){
   const b=$('#stBody'); if(!b) return;
-  b.innerHTML=({next:studyNext,notes:studyNotes,formulas:studyFormulas,topics:studyTopics,units:studyUnits})[study.sec]?.()||studyNext();
+  b.innerHTML=({review:studyReview,index:studyIndex,unit:studyUnitPage,formulas:()=>studyFormulas(),topics:studyTopics,units:studyUnits})[study.sec]?.()||studyIndex();
+  b.querySelectorAll('[data-assign]').forEach(sel=>sel.onchange=()=>{if(sel.value)assignToBlock(sel.dataset.assign,sel.value);});
+  b.querySelectorAll('select[data-act=target]').forEach(sel=>sel.onchange=()=>{SD().targets[sel.dataset.id]=sel.value;commit();});
   const qf=$('#qForm'); if(qf) qf.onsubmit=e=>{e.preventDefault();const t=$('#q-title').value.trim();if(!t)return;SD().queue.push({id:uid(),courseId:$('#q-course').value,title:t,done:false,added:todayIso()});commit();setTimeout(()=>$('#q-title')?.focus(),0);};
   const uf=$('#uForm'); if(uf) uf.onsubmit=e=>{e.preventDefault();const g=k=>$('#u-'+k).value.trim();if(!g('quantity')||!g('sym'))return;SD().units.push({id:uid(),quantity:g('quantity'),sym:g('sym'),base:g('base'),note:g('note')});commit();};
   b.querySelectorAll('form[data-addtopic]').forEach(f=>f.onsubmit=e=>{e.preventDefault();const i=f.querySelector('input'),t=i.value.trim(),c=course(f.dataset.addtopic);if(!t||!c||topicsFor(c).includes(t))return;SD().extraTopics.push({courseId:c.id,title:t});commit();});
 }
 const unitOpts=(sel,blank)=>(blank?`<option value="">${blank}</option>`:'')+state.courses.map(c=>`<option value="${c.id}"${c.id===sel?' selected':''}>${esc(c.code)}</option>`).join('');
-function studyNext(){
-  const cid=unitSel(), items=nextUp(cid);
-  return `<div class="panel"><div class="panel-head"><h2>Next up</h2><span class="hint">Rebuilt each time from your class work, assessments, weak topics and your own list.</span></div>
-    <div class="list">${items.slice(0,8).map(x=>nextRow(x)).join('')||'<p class="empty">Nothing waiting. Rate your topics under Topics &amp; weak areas so the Desk knows what to bring up.</p>'}</div>
-    ${items.length>8?`<p class="hint" style="margin:0">${items.length-8} more after these.</p>`:''}
-    <form class="addline" id="qForm" style="grid-template-columns:auto 1fr auto"><select id="q-course" aria-label="Unit">${unitOpts(cid,'General')}</select><input id="q-title" placeholder="Add your own, e.g. redo Q4 from the week 3 worksheet" aria-label="Add to Next up" required><button class="btn primary" type="submit">Add</button></form>
+/* ---------- Sunday review: Next up suggestions dragged into next week's blocks ---------- */
+const reviewMon=()=>{const t0=today0();return addDays(monday(t0),7);};
+function reviewBlocks(){
+  const m=reviewMon(), from=iso(m), to=iso(addDays(m,6));
+  return state.sessions.filter(s=>s.date>=from&&s.date<=to&&s.kind!=='catchup'&&s.kind!=='light').sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
+}
+const isDefaultBlock=s=>s.tpl&&!s.edited;
+function studyReview(){
+  const cid=unitSel(), items=nextUp(cid), m=reviewMon(), blocks=reviewBlocks().filter(s=>!cid||s.courseId===cid||!s.courseId);
+  const beh=state.courses.map(c=>({c,why:behindReasons(c)})).filter(x=>x.why.length&&(!cid||x.c.id===cid));
+  const blockOpts=x=>{const own=blocks.filter(s=>s.courseId===(x.c?.id||'')||!s.courseId);const list=(own.length?own:blocks);
+    return `<select data-assign="${esc(x.key)}" aria-label="Put into a block"><option value="">Put into a block…</option>${list.map(s=>`<option value="${s.id}">${fmt(s.date,{weekday:'short'})} ${s.start} · ${esc(isDefaultBlock(s)?(course(s.courseId)?.code||'General')+' block':s.title)}</option>`).join('')}</select>`;};
+  return `<div class="panel"><div class="panel-head"><h2>Sunday review</h2><span class="hint">Planning the week of ${fmtD(m,{day:'numeric',month:'short'})}. During the week, just follow the schedule.</span></div>
+    <ol class="how"><li>Tick off anything you finished this week, in <b>Weekly work</b> and the planner.</li><li>Check the Behind list and your weak topics.</li><li>Put the suggestions below into next week’s study blocks. Each block takes one focus.</li></ol>
+    ${beh.length?`<div class="notice"><span><b>Behind:</b> ${beh.map(x=>`${esc(x.c.code)} (${esc(x.why.join('; '))})`).join(' · ')}. An extra hour is booked on Saturday for each until it clears.</span></div>`:''}</div>
+  <div class="grid g3">
+    <div class="panel" style="grid-column:span 2;min-width:min(100%,260px)"><div class="panel-head"><h2>Suggestions</h2></div>
+      <div class="list">${items.slice(0,12).map(x=>`<div class="row" style="--cc:var(--${x.c?.color||'accent'});grid-template-columns:1fr auto">
+        <div class="t"><span class="title">${esc(x.title)}</span><span class="meta">${chip(x.c)}<span class="kind">${{cw:'Class work',task:'Assessment',topic:'Weak topic',q:'Your list'}[x.kind]}</span></span><span class="why">${esc(x.why)}</span></div>
+        <div class="end">${blocks.length?blockOpts(x):''}<button class="btn ghost" type="button" data-act="nxSnooze" data-key="${esc(x.key)}" title="Hide until tomorrow">Skip</button></div></div>`).join('')||'<p class="empty">Nothing to suggest. Rate your topics so weak ones come up here.</p>'}</div>
+      <form class="addline" id="qForm" style="grid-template-columns:auto 1fr auto"><select id="q-course" aria-label="Unit">${unitOpts(cid,'General')}</select><input id="q-title" placeholder="Add your own, e.g. redo Q4 from the week 3 worksheet" aria-label="Add a suggestion" required><button class="btn primary" type="submit">Add</button></form></div>
+    <div class="panel"><div class="panel-head"><h2>Next week’s blocks</h2><button class="btn ghost" type="button" data-act="reviewWeek">Planner →</button></div>
+      <div class="list">${blocks.map(s=>{const c=course(s.courseId);return `<div class="row" style="grid-template-columns:auto 1fr"><span class="num" style="font-size:12px">${fmt(s.date,{weekday:'short'})}<br>${s.start}</span><div class="t"><span class="title" style="font-weight:${isDefaultBlock(s)?400:700}">${esc(s.title)}</span><span class="meta">${chip(c)}</span></div></div>`;}).join('')||'<p class="empty">No study blocks next week. Set up your weekly study template in the Week planner.</p>'}</div></div>
   </div>`;
 }
-function noteCard(n){
-  const c=course(n.courseId), ts=(n.taskIds||[]).map(id=>state.tasks.find(t=>t.id===id)).filter(Boolean);
-  return `<article class="note" style="--cc:var(--${c?.color||'accent'})">
-    <div class="panel-head"><h3>${n.pinned?'<span title="Pinned">📌 </span>':''}${esc(n.title||'Untitled note')}</h3><button class="btn ghost" type="button" data-act="editNote" data-id="${n.id}">Edit</button></div>
-    <span class="meta" style="display:flex;flex-wrap:wrap;gap:6px;font-size:12px;color:var(--muted)">${chip(c)}${n.week?`<span>Week ${n.week}</span>`:''}${(n.topics||[]).map(t=>`<span class="tag" style="margin:0;background:var(--sunken)">${esc(shortT(t,40))}</span>`).join('')}${ts.map(t=>`<span>· ${esc(t.title)}</span>`).join('')}</span>
-    <div class="md">${md(n.body)}</div></article>`;
+function assignToBlock(key,sid){
+  const x=nextUp().find(x=>x.key===key), s=state.sessions.find(s=>s.id===sid); if(!x||!s) return;
+  const code=course(s.courseId)?.code||x.c?.code;
+  s.title=(code?code+': ':'')+(x.kind==='topic'?'Practise '+shortT(x.topic,50):x.title);
+  if(x.kind==='task') s.taskId=x.id;
+  if(!s.courseId&&x.c) s.courseId=x.c.id;
+  s.edited=true; snooze(key); commit();
 }
-function studyNotes(){
+
+/* ---------- lecture index (handwritten notes stay the record; this says where things are) ---------- */
+function studyIndex(){
   const cid=unitSel(), ws=teachWeeks();
-  const ns=SD().notes.filter(n=>(!cid||n.courseId===cid)&&(study.week==='all'||String(n.week||'')===study.week)&&hasQ(n.title,n.body,(n.topics||[]).join(' ')))
-    .sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0)||(b.week||0)-(a.week||0)||String(b.updated||'').localeCompare(String(a.updated||'')));
-  return `<div class="panel"><div class="panel-head"><h2>Summaries</h2><div class="filters"><select aria-label="Week" onchange="this.dispatchEvent(new CustomEvent('stweek',{bubbles:true,detail:this.value}))"><option value="all">All weeks</option>${ws.map(w=>`<option value="${w.teach}"${String(w.teach)===study.week?' selected':''}>Week ${w.teach}</option>`).join('')}</select><button class="btn primary" type="button" data-act="addNote">New summary</button></div></div>
-    <p class="hint" style="margin:0">Your handwritten notes stay your main record. Use these for short summaries you want on every device: key ideas, worked-example steps, where to find things in your notebook. Write in Markdown: <code>**bold**</code>, <code>- lists</code>, and maths between dollar signs, like <code>$v = u + at$</code> or <code>$$\\frac{dy}{dx}$$</code> on its own line.</p></div>
-    ${ns.length?`<div class="notes">${ns.map(noteCard).join('')}</div>`:`<div class="panel"><p class="empty">${SD().notes.length?'No notes match.':'No summaries yet. Press New summary, or use + Note on a Weekly work item or an assessment.'}</p></div>`}`;
+  const ns=SD().notes.filter(n=>(!cid||n.courseId===cid)&&(study.week==='all'||String(n.week||'')===study.week)&&hasQ(n.title,n.body,n.page,(n.topics||[]).join(' ')));
+  const units=state.courses.filter(c=>!cid||c.id===cid).map(c=>{
+    const mine=ns.filter(n=>n.courseId===c.id).sort((a,b)=>(a.week||99)-(b.week||99)||String(a.updated||'').localeCompare(String(b.updated||'')));
+    if(!mine.length) return '';
+    return `<div class="panel course" style="--cc:var(--${c.color})"><h3>${chip(c)} ${esc(c.name)}</h3><div style="overflow-x:auto"><table class="sitable idx"><thead><tr><th>Week</th><th>Lecture or topic</th><th>Summary</th><th>Notebook</th><th></th></tr></thead><tbody>
+      ${mine.map(n=>`<tr><td class="num">${n.week||'—'}</td><td><b>${esc(n.title)}</b>${(n.topics||[]).length?`<br><span class="hint">${(n.topics||[]).map(t=>esc(shortT(t,40))).join(' · ')}</span>`:''}</td><td><div class="md">${md(n.body)}</div></td><td class="num" style="white-space:nowrap">${esc(n.page||'')}</td><td><button class="btn ghost" type="button" data-act="editNote" data-id="${n.id}">Edit</button></td></tr>`).join('')}
+    </tbody></table></div></div>`;}).join('');
+  return `<div class="panel"><div class="panel-head"><h2>Lecture index</h2><div class="filters"><select aria-label="Week" onchange="this.dispatchEvent(new CustomEvent('stweek',{bubbles:true,detail:this.value}))"><option value="all">All weeks</option>${ws.map(w=>`<option value="${w.teach}"${String(w.teach)===study.week?' selected':''}>Week ${w.teach}</option>`).join('')}</select><button class="btn primary" type="button" data-act="addNote">Add lecture</button></div></div>
+    <p class="hint" style="margin:0">Your notebooks are the record. Here, each lecture gets one line: what it was about and the notebook page, so you can find it in revision. Do it in your 10-minute wrap-up. Maths works between dollar signs: <code>$v = u + at$</code>.</p></div>
+    ${units||`<div class="panel"><p class="empty">${SD().notes.length?'Nothing matches.':'Nothing indexed yet. Press Add lecture, or use + Note on a Weekly work item.'}</p></div>`}`;
 }
-function packsToOffer(){
-  return Object.entries(STUDY_DATA.packs).filter(([code])=>findUnit(code)&&!SD().packs.includes(code)&&(!unitSel()||findUnit(code).id===unitSel()));
-}
-function studyFormulas(){
-  const cid=unitSel();
+
+function studyFormulas(forced){
+  const cid=forced||unitSel();
   const fs=SD().formulas.filter(f=>(!cid||f.courseId===cid)&&hasQ(f.name,f.tex,f.where,f.when,f.topic));
-  const packs=packsToOffer();
   const groups=state.courses.filter(c=>!cid||c.id===cid).map(c=>{
     const mine=fs.filter(f=>f.courseId===c.id); if(!mine.length) return '';
     const order=topicsFor(c), byT=new Map();
@@ -1245,10 +1266,129 @@ function studyFormulas(){
         ${f.where?`<div class="md hint" style="grid-column:1/-1">${md(f.where)}</div>`:''}${f.when?`<div class="hint" style="grid-column:1/-1"><b>Use when:</b> ${esc(f.when)}</div>`:''}</div>`).join('')}</div></div>`).join('')}
     </section>`;}).join('');
   return `<div class="panel noprint"><div class="panel-head"><h2>Formula sheet</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-act="printSheet">Print or save as PDF</button><button class="btn primary" type="button" data-act="addFormula">Add formula</button></div></div>
-    <p class="hint" style="margin:0">Write formulas in LaTeX, for example <code>v^2 = u^2 + 2as</code> or <code>\\frac{d}{dx}\\sin x = \\cos x</code>. The preview shows as you type.</p>
-    ${packs.map(([code,p])=>`<div class="notice"><span><b>Starter formulas for ${esc(code)}:</b> ${p.formulas.length} standard formulas${p.topics&&!(findUnit(code).content||[]).length?` and its ${p.topics.length} weekly topics`:''}, grouped by topic. They come from standard maths and physics, so check them against your lecture notes. You can edit or delete any of them.</span><button class="btn primary" type="button" data-act="addPack" data-id="${code}">Add them</button></div>`).join('')}</div>
+    <p class="hint" style="margin:0">Add each formula the first time you meet it, with what every symbol means and its SI unit. Write it in LaTeX, for example <code>v^2 = u^2 + 2as</code> or <code>\\frac{d}{dx}\\sin x = \\cos x</code>. The preview shows as you type.</p></div>
     ${groups||`<div class="panel"><p class="empty">${SD().formulas.length?'No formulas match.':'No formulas yet.'}</p></div>`}`;
 }
+
+/* ---------- unit pages: a few lists that suit each unit ---------- */
+const LISTS={
+  methods:{title:'Methods',hint:'Each technique you learn: when to reach for it and the steps.',fields:[{k:'name',l:'Method',req:1},{k:'when',l:'Use it when'},{k:'steps',l:'Steps',type:'md'},{k:'topic',l:'Topic',type:'topic'}],
+    row:r=>`<b>${esc(r.name)}</b>${r.when?`<span class="why">Use when: ${esc(r.when)}</span>`:''}${r.steps?`<div class="md">${md(r.steps)}</div>`:''}`},
+  labs:{title:'Lab tracker',hint:'Each lab: the session, whether you have your data, and the worksheet.',fields:[{k:'name',l:'Lab',req:1},{k:'date',l:'Lab session',type:'date'},{k:'due',l:'Worksheet due',type:'date'},{k:'status',l:'Status',type:'select',opts:['Not started','Data collected','Worksheet drafted','Submitted','Marked']},{k:'notes',l:'Notes'}],
+    row:r=>`<b>${esc(r.name)}</b><span class="meta">${r.date?`Lab ${fmt(r.date,{weekday:'short',day:'numeric',month:'short'})}`:''}${r.due?` · worksheet due ${fmt(r.due,{weekday:'short',day:'numeric',month:'short'})}`:''}${r.status?` · <b>${esc(r.status)}</b>`:''}</span>${r.notes?`<span class="why">${esc(r.notes)}</span>`:''}`},
+  decisions:{title:'Design decision log',hint:'What the team decided, the options, and why. Handy for the report and reflection.',fields:[{k:'date',l:'Date',type:'date'},{k:'decision',l:'Decision',req:1},{k:'options',l:'Options considered'},{k:'reason',l:'Why',type:'md'},{k:'who',l:'Who decided'}],
+    row:r=>`<b>${esc(r.decision)}</b><span class="meta">${r.date?fmt(r.date):''}${r.who?` · ${esc(r.who)}`:''}${r.options?` · options: ${esc(r.options)}`:''}</span>${r.reason?`<div class="md">${md(r.reason)}</div>`:''}`},
+  actions:{title:'Team actions',hint:'Who is doing what, by when.',fields:[{k:'action',l:'Action',req:1},{k:'owner',l:'Owner'},{k:'due',l:'Due',type:'date'},{k:'done',l:'Done',type:'check'}],
+    row:r=>`<b style="${r.done?'text-decoration:line-through;color:var(--muted)':''}">${esc(r.action)}</b><span class="meta">${esc(r.owner||'')}${r.due?` · due ${fmt(r.due,{weekday:'short',day:'numeric',month:'short'})}`:''}${r.done?' · done':''}</span>`,toggle:'done'},
+  sources:{title:'Source library',hint:'Every source you might cite, with where you used it.',fields:[{k:'cite',l:'Reference (author, year, title)',req:1},{k:'type',l:'Type',type:'select',opts:['Journal article','Book','Report','Website','Standard','Other']},{k:'url',l:'Link or DOI'},{k:'used',l:'Used in'},{k:'notes',l:'Key points',type:'md'}],
+    row:r=>`<b>${esc(r.cite)}</b><span class="meta">${esc(r.type||'')}${r.used?` · used in ${esc(r.used)}`:''}${/^https?:\/\//.test(r.url||'')?` · <a href="${esc(r.url)}" target="_blank" rel="noopener">link</a>`:r.url?` · ${esc(r.url)}`:''}</span>${r.notes?`<div class="md">${md(r.notes)}</div>`:''}`},
+  genai:{title:'GenAI use log',hint:'Each time you use a GenAI tool for an assessment: what for and how, so you can acknowledge it as the task requires.',fields:[{k:'date',l:'Date',type:'date'},{k:'tool',l:'Tool'},{k:'purpose',l:'What for',req:1},{k:'how',l:'How you used the output'},{k:'task',l:'Assessment'},{k:'ack',l:'Acknowledged in the submission',type:'check'}],
+    row:r=>`<b>${esc(r.purpose)}</b><span class="meta">${r.date?fmt(r.date):''}${r.tool?` · ${esc(r.tool)}`:''}${r.task?` · ${esc(r.task)}`:''} · ${r.ack?'acknowledged':'<b style="color:var(--warn)">not yet acknowledged</b>'}</span>${r.how?`<span class="why">${esc(r.how)}</span>`:''}`,toggle:'ack'},
+  psc:{title:'Problem-solving checklist',check:1,hint:'Run through it on every problem until it’s automatic.',fields:[{k:'text',l:'Step',req:1}],defaults:[
+    'Read the question twice. List the knowns and unknowns, each with its unit.','Sketch it. Draw a free-body diagram or label the system.','Pick the principle (Newton’s laws, energy, momentum, pressure, stress–strain) and say why it applies.',
+    'Convert everything to SI base units first.','Solve with symbols before putting numbers in.','Substitute, carrying the units through.','Check the units, the sign and the size: is the answer sensible?','Round to sensible significant figures, and state the answer with its unit.']},
+  refcheck:{title:'Referencing checklist',check:1,hint:'Based on APA 7, QUT’s usual style. Your task sheet has the final say, and QUT cite|write has examples.',fields:[{k:'text',l:'Check',req:1}],defaults:[
+    'Every quoted or paraphrased idea has an in-text citation (Author, year).','Direct quotes have page numbers.','Every in-text citation is in the reference list, and the other way round.','Reference list: alphabetical by first author’s surname, with a hanging indent.',
+    'DOIs or URLs are included where they exist.','Italics and capitals follow APA 7 for each source type.','GenAI use is acknowledged the way the task sheet asks.']},
+};
+const UNIT_PAGES={EGD105:['methods','formulas'],EGD102:['formulas','labs','psc'],EGD101:['decisions','actions'],QCD210:['sources','refcheck','genai']};
+function pageRows(code,key){
+  const p=SD().pages[code]=SD().pages[code]||{};
+  if(!Array.isArray(p[key])) return (LISTS[key].defaults||[]).map((text,i)=>({id:'d'+i,text}));
+  return p[key];
+}
+function ensureRows(code,key){const p=SD().pages[code]=SD().pages[code]||{};if(!Array.isArray(p[key]))p[key]=pageRows(code,key).map(r=>({...r,id:uid()}));return p[key];}
+function listPanel(c,key){
+  const L=LISTS[key], rows=pageRows(c.code,key).filter(r=>hasQ(...Object.values(r)));
+  if(L.check) return `<div class="panel"><div class="panel-head"><h2>${L.title}</h2><button class="btn ghost" type="button" data-act="listAdd" data-code="${esc(c.code)}" data-list="${key}">Add a step</button></div><span class="hint">${L.hint}</span>
+    <ol class="how">${rows.map(r=>`<li>${esc(r.text)} <button class="minibtn" type="button" data-act="listEdit" data-code="${esc(c.code)}" data-list="${key}" data-id="${r.id}">edit</button></li>`).join('')}</ol></div>`;
+  return `<div class="panel"><div class="panel-head"><h2>${L.title}</h2><button class="btn primary" type="button" data-act="listAdd" data-code="${esc(c.code)}" data-list="${key}">Add</button></div><span class="hint">${L.hint}</span>
+    <div class="list">${rows.map(r=>`<div class="row" style="grid-template-columns:${L.toggle?'auto ':''}1fr auto">${L.toggle?`<button class="check" type="button" data-act="listToggle" data-code="${esc(c.code)}" data-list="${key}" data-id="${r.id}" aria-pressed="${!!r[L.toggle]}" aria-label="Toggle">${r[L.toggle]?tick:''}</button>`:''}<div class="t">${L.row(r)}</div><button class="btn ghost" type="button" data-act="listEdit" data-code="${esc(c.code)}" data-list="${key}" data-id="${r.id}">Edit</button></div>`).join('')||'<p class="empty">Nothing yet.</p>'}</div></div>`;
+}
+function listDialog(code,key,id){
+  const L=LISTS[key], c=findUnit(code), rows=ensureRows(code,key), isNew=!id;
+  const r=isNew?{id:uid()}:rows.find(x=>x.id===id); if(!r) return;
+  const tOpts=sel=>`<option value="">No topic</option>`+topicsFor(c).map(t=>`<option value="${esc(t)}"${t===sel?' selected':''}>${esc(shortT(t,60))}</option>`).join('');
+  openDialog(`<h2>${L.title}</h2><div class="fields">${L.fields.map(f=>{const v=r[f.k]??'';
+    if(f.type==='check') return `<label class="field inline" style="grid-column:1/-1"><input type="checkbox" name="${f.k}"${v?' checked':''}><span>${f.l}</span></label>`;
+    if(f.type==='md') return `<label class="field" style="grid-column:1/-1"><span class="label">${f.l}</span><textarea name="${f.k}" style="min-height:90px">${esc(v)}</textarea></label>`;
+    if(f.type==='select') return `<label class="field"><span class="label">${f.l}</span><select name="${f.k}"><option value=""></option>${f.opts.map(o=>`<option${o===v?' selected':''}>${o}</option>`).join('')}</select></label>`;
+    if(f.type==='topic') return `<label class="field" style="grid-column:1/-1"><span class="label">${f.l}</span><select name="${f.k}">${tOpts(v)}</select></label>`;
+    return `<label class="field"${f.type==='date'?'':' style="grid-column:1/-1"'}><span class="label">${f.l}</span><input name="${f.k}" type="${f.type==='date'?'date':'text'}" value="${esc(v)}"${f.req?' required':''}></label>`;}).join('')}</div>${actions(isNew?'':'Delete')}`,
+  fd=>{
+    const out={}; L.fields.forEach(f=>{out[f.k]=f.type==='check'?!!fd.get(f.k):String(fd.get(f.k)||'').trim();});
+    const req=L.fields.find(f=>f.req); if(req&&!out[req.k]) return `Fill in ${req.l.toLowerCase()}.`;
+    Object.assign(r,out); if(isNew) rows.push(r); commit();
+  },()=>{SD().pages[code][key]=rows.filter(x=>x.id!==r.id);commit();});
+}
+function targetLine(c){
+  const tg=SD().targets[c.id]||'6', B=bandByGrade(tg), g=unitMark(c), marks=state.tasks.filter(t=>t.courseId===c.id&&t.score!=null&&t.max).length;
+  if(g.pct==null) return `Target <b>${esc(tg)}</b> (${B?B[0]:'?'}%+). No marks yet.`;
+  const d=g.pct-(B?B[0]:0);
+  let s=`Target <b>${esc(tg)}</b> (${B?B[0]:'?'}%+). Marks so far <b class="num">${g.pct.toFixed(1)}%</b>: <b style="color:var(--${d>=0?'ok':'warn'})">${d>=0?`${d.toFixed(1)} ahead`:`${(-d).toFixed(1)} below`}</b>.`;
+  if(d<0&&marks>=2){const safest=state.courses.filter(x=>x.id!==c.id).map(x=>({x,p:unitMark(x).pct})).filter(x=>x.p!=null).sort((a,b)=>b.p-a.p)[0];
+    s+=` Below target after ${marks} marks: move one study block a week to ${esc(c.code)}${safest?` from ${esc(safest.x.code)}, your safest unit`:''} in the weekly template.`;}
+  return s;
+}
+function studyUnitPage(){
+  const cid=unitSel(), c=course(cid);
+  if(!c) return `<div class="panel"><h2>Unit pages</h2><p class="hint" style="margin:0">Pick a unit.</p><div style="display:flex;gap:8px;flex-wrap:wrap">${state.courses.map(c=>`<button class="btn" type="button" data-act="studyPage" data-id="${c.id}">${esc(c.code)}</button>`).join('')}</div></div>`;
+  const why=behindReasons(c), keys=UNIT_PAGES[c.code]||['methods'];
+  return `<div class="panel course" style="--cc:var(--${c.color})"><div class="panel-head"><h2>${chip(c)} ${esc(c.name)}</h2>
+      <label class="filters hint">Target grade <select data-act="target" data-id="${c.id}" aria-label="Target grade">${['7','6','5','4'].map(g=>`<option${g===(SD().targets[c.id]||'6')?' selected':''}>${g}</option>`).join('')}</select></label></div>
+    <span class="hint">${targetLine(c)}</span>
+    ${why.length?`<div class="notice"><span><b>Behind:</b> ${esc(why.join('; '))}. An extra hour is booked this Saturday until it clears.</span></div>`:'<span class="hint">On track: nothing left over from last week and no missed checkpoints.</span>'}</div>
+    ${keys.map(k=>k==='formulas'?studyFormulas(c.id):listPanel(c,k)).join('')}`;
+}
+
+/* ---------- marking criteria, per assessment ---------- */
+const criteriaOf=t=>SD().criteria[t.id]||[];
+function criteriaEditor(t){
+  const rows=criteriaOf(t);
+  return `<details${rows.length?' open':''}><summary class="label" style="cursor:pointer">Marking criteria${rows.length?` · ${rows.filter(r=>r.done).length}/${rows.length} met`:''}</summary>
+    <div id="f-crit" style="display:flex;flex-direction:column;gap:6px;padding-top:6px">${rows.map(r=>critRow(r)).join('')}</div>
+    <div style="display:flex;gap:8px;align-items:center;padding-top:6px"><button class="btn ghost" type="button" id="f-critadd">+ Add a criterion</button><span class="hint">Copy each line of the rubric, then tick it once your work meets it.</span></div></details>`;
+}
+const critRow=r=>`<div class="crit" style="display:grid;grid-template-columns:auto 1fr auto;gap:6px;align-items:center"><input type="checkbox" name="critDone" value="${r.id}"${r.done?' checked':''} aria-label="Met"><input name="critText" data-id="${r.id}" value="${esc(r.text)}" placeholder="e.g. Clear problem statement with constraints" style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px;width:100%"><button class="btn ghost" type="button" data-critdel aria-label="Remove">✕</button></div>`;
+function readCriteria(){
+  const done=new Set([...form.querySelectorAll('input[name=critDone]:checked')].map(i=>i.value));
+  return [...form.querySelectorAll('input[name=critText]')].map(i=>({id:i.dataset.id,text:i.value.trim(),done:done.has(i.dataset.id)})).filter(r=>r.text);
+}
+
+/* ---------- Behind flags ---------- */
+// A unit is Behind when last week's Weekly work is still unticked by Saturday (after Friday's catch-up), or an assessment misses a checkpoint:
+// started by the end of its release week, a draft done 5 days before it's due, and for exam units every topic rated OK or better by SWOTVAC.
+const DRAFT_TYPES=['Assignment','Lab report','Essay','Report','Presentation','Group project','Quiz'];
+function behindReasons(c){
+  const t0=today0(), today=iso(t0), mon=monday(t0), weekend=t0.getDay()===6||t0.getDay()===0, out=[];
+  const cutoff=iso(weekend?addDays(mon,1):mon); // weekend: this week's work counts too; weekdays: earlier weeks only
+  const left=state.classwork.filter(x=>x.courseId===c.id&&!x.done&&x.weekOf<cutoff);
+  if(left.length){const wks=[...new Set(left.map(x=>teachOf(x.weekOf)).filter(Boolean))].sort((a,b)=>a-b);out.push(`${left.length} Weekly work item${left.length>1?'s':''} left from week ${wks.join(', ')}`);}
+  state.tasks.filter(t=>t.courseId===c.id&&!isDone(t)&&DRAFT_TYPES.includes(t.type)&&!/portfolio|in[- ]class|workshop/i.test(t.title+' '+(t.notes||''))).forEach(t=>{ // in-class tasks have no draft stage
+    const rel=SD().release[t.id]||iso(addDays(D(t.due),-14)), relEnd=iso(addDays(monday(D(rel)),6));
+    if(t.stage==='Not started'&&today>relEnd&&today<=t.due) out.push(`${t.title} not started (released ${fmt(rel)})`);
+    else if(['Not started','In progress','Drafting'].includes(t.stage)&&today>=iso(addDays(D(t.due),-5))&&today<=t.due) out.push(`${t.title} draft not done 5 days out`);
+  });
+  const T=state.term, sw=T.swotStart||(T.examStart?iso(addDays(D(T.examStart),-7)):'');
+  if(sw&&today>=sw&&today<=(T.end||today)&&state.tasks.some(t=>t.courseId===c.id&&t.type==='Final exam')){
+    const low=topicsFor(c).filter(tp=>topicState(c.id,tp).level<3).length; if(low) out.push(`${low} topic${low>1?'s':''} not yet OK for the exam`);
+  }
+  return out;
+}
+// Books (or clears) the 5th deep hour on Saturday for each unit that's Behind.
+function behindHours(){
+  const t0=today0(), sat=iso(addDays(monday(t0),5)), today=iso(t0); let ch=false;
+  if(sat<today) return false;
+  state.courses.forEach(c=>{
+    const behind=behindReasons(c).length>0, has=state.sessions.find(s=>s.behind&&s.courseId===c.id&&s.date===sat);
+    if(behind&&!has){
+      const busy=itemsOnDate(D(sat)).map(x=>[toMin(x.start),toMin(x.end)]), at=freeStart(960,60,busy); if(at==null) return;
+      state.sessions.push({id:uid(),courseId:c.id,taskId:null,date:sat,start:mm(at),end:mm(at+60),title:`${c.code}: extra hour (behind)`,done:false,kind:'deep',behind:true});ch=true;
+    }else if(!behind&&has&&!has.done&&!has.edited){state.sessions=state.sessions.filter(s=>s!==has);ch=true;}
+  });
+  return ch;
+}
+
 function levelPicker(cid,t){
   const s=topicState(cid,t);
   return `<span class="lv" role="group" aria-label="Confidence">${[1,2,3,4].map(l=>`<button type="button" style="--lc:var(--${LEVELS[l].c})" data-act="topicLevel" data-cid="${cid}" data-topic="${esc(t)}" data-level="${l}" aria-pressed="${s.level===l}">${LEVELS[l].n}</button>`).join('')}</span>`;
@@ -1290,22 +1430,22 @@ function noteDialog(n,preset={}){
   const isNew=!n;
   n=n||{id:uid(),courseId:preset.courseId||unitSel()||state.courses[0].id,week:preset.week??curTeachWeek(),title:preset.title||'',body:'',topics:preset.topics||[],taskIds:preset.taskIds||[],cwId:preset.cwId||null,pinned:false};
   const taskChecks=cid=>{const ts=state.tasks.filter(t=>t.courseId===cid).sort((a,b)=>a.due.localeCompare(b.due));return ts.length?ts.map(t=>`<label class="field inline hint"><input type="checkbox" name="taskIds" value="${t.id}"${(n.taskIds||[]).includes(t.id)?' checked':''}>${esc(t.title)}</label>`).join(''):'<span class="hint">No assessments for this unit.</span>';};
-  openDialog(`<h2>${isNew?'New summary':'Edit summary'}</h2>
+  openDialog(`<h2>${isNew?'Add to lecture index':'Edit lecture index entry'}</h2>
     <div class="fields">
-      <label class="field" style="grid-column:1/-1"><span class="label">Title</span><input name="title" value="${esc(n.title)}" placeholder="Chain rule: the 3 steps"></label>
+      <label class="field" style="grid-column:1/-1"><span class="label">Lecture or topic</span><input name="title" value="${esc(n.title)}" placeholder="Week 3 lecture: the chain rule"></label>
       <label class="field"><span class="label">Unit</span><select name="courseId" id="n-course">${unitOpts(n.courseId)}</select></label>
       <label class="field"><span class="label">Week</span><select name="week"><option value="">No week</option>${teachWeeks().map(w=>`<option value="${w.teach}"${w.teach===n.week?' selected':''}>Week ${w.teach}</option>`).join('')}</select></label>
-      <label class="field inline" style="align-self:end"><input type="checkbox" name="pinned"${n.pinned?' checked':''}><span>Pin to top</span></label>
+      <label class="field"><span class="label">Notebook page</span><input name="page" value="${esc(n.page||'')}" placeholder="p. 14–17"></label>
     </div>
-    <label class="field"><span class="label">Note</span><textarea name="body" id="n-body" placeholder="Key points in a few lines. Maths: $F = ma$, or $$\\int_a^b f(x)\\,dx$$ on its own line. Note where the full version is, e.g. Notebook 2, p. 14.">${esc(n.body)}</textarea></label>
+    <label class="field"><span class="label">One-line summary</span><textarea name="body" style="min-height:70px" id="n-body" placeholder="What it covered, in a line or two. Maths: $F = ma$, or $$\\int_a^b f(x)\\,dx$$ on its own line.">${esc(n.body)}</textarea></label>
     <div class="field"><span class="label">Preview</span><div class="md" id="n-prev" style="border:1px dashed var(--line);border-radius:8px;padding:8px 10px;min-height:40px"></div></div>
     <details><summary class="label" style="cursor:pointer">Topics</summary><div id="n-topics" style="display:flex;flex-direction:column;gap:2px;padding-top:6px">${topicChecks(n.courseId,n.topics||[])}</div></details>
     <details><summary class="label" style="cursor:pointer">Assessments it helps with</summary><div id="n-tasks" style="display:flex;flex-direction:column;gap:2px;padding-top:6px">${taskChecks(n.courseId)}</div></details>
-    ${actions(isNew?'':'Delete summary')}`,
+    ${actions(isNew?'':'Delete entry')}`,
   fd=>{
     const title=fd.get('title').trim(), body=fd.get('body');
     if(!title&&!body.trim()) return 'Write something first.';
-    Object.assign(n,{title:title||body.trim().split('\n')[0].replace(/^#+\s*/,'').slice(0,60),body,courseId:fd.get('courseId'),week:fd.get('week')?+fd.get('week'):null,pinned:!!fd.get('pinned'),topics:fd.getAll('topics'),taskIds:fd.getAll('taskIds'),updated:todayIso()});
+    Object.assign(n,{title:title||body.trim().split('\n')[0].replace(/^#+\s*/,'').slice(0,60),body,courseId:fd.get('courseId'),week:fd.get('week')?+fd.get('week'):null,page:String(fd.get('page')||'').trim(),topics:fd.getAll('topics'),taskIds:fd.getAll('taskIds'),updated:todayIso()});
     if(isNew) SD().notes.push(n);
     commit();
   },()=>{SD().notes=SD().notes.filter(x=>x.id!==n.id);commit();});
@@ -1365,13 +1505,6 @@ function mistakeDialog(m){
   },()=>{SD().mistakes=SD().mistakes.filter(x=>x.id!==m.id);commit();});
   form.querySelector('#m-course').onchange=e=>{form.querySelector('#m-topic').innerHTML=tOpts(e.target.value,'');form.querySelector('#m-where').innerHTML=state.tasks.filter(t=>t.courseId===e.target.value).map(t=>`<option value="${esc(t.title)}">`).join('');};
 }
-function addPack(code){
-  const p=STUDY_DATA.packs[code], c=findUnit(code); if(!p||!c||SD().packs.includes(code)) return;
-  if(p.topics&&!(c.content||[]).length) p.topics.forEach(t=>{if(!topicsFor(c).includes(t))SD().extraTopics.push({courseId:c.id,title:t});});
-  const have=new Set(SD().formulas.filter(f=>f.courseId===c.id).map(f=>normT(f.name)));
-  p.formulas.forEach(f=>{if(have.has(normT(f.name)))return;SD().formulas.push({id:uid(),courseId:c.id,name:f.name,tex:f.tex,where:f.where,when:f.when,topic:matchTopic(c,f.topic)||f.topic,pack:code});});
-  SD().packs.push(code); commit();
-}
 function studyClick(a,b){
   const id=b.dataset.id;
   if(a.startsWith('nx')){nextAction(a,b.dataset.key);return true;}
@@ -1381,7 +1514,6 @@ function studyClick(a,b){
   if(a==='noteTask'){const t=state.tasks.find(t=>t.id===id);if(t)noteDialog(null,{courseId:t.courseId,week:teachOf(t.due),title:t.title,taskIds:[t.id],topics:coveredBy(t).length<=3?coveredBy(t):[]});return true;}
   if(a==='addFormula'){formulaDialog();return true;}
   if(a==='editFormula'){formulaDialog(SD().formulas.find(f=>f.id===id));return true;}
-  if(a==='addPack'){addPack(id);return true;}
   if(a==='printSheet'){document.body.classList.add('print-sheet');window.print();return true;}
   if(a==='addMistake'){mistakeDialog();return true;}
   if(a==='editMistake'){mistakeDialog(SD().mistakes.find(m=>m.id===id));return true;}
@@ -1389,8 +1521,13 @@ function studyClick(a,b){
   if(a==='topicPractised'){setTopic(b.dataset.cid,b.dataset.topic,{last:todayIso()});commit();return true;}
   if(a==='topicDel'){SD().extraTopics=SD().extraTopics.filter(x=>!(x.courseId===b.dataset.cid&&x.title===b.dataset.topic));commit();return true;}
   if(a==='unitDel'){SD().units=SD().units.filter(u=>u.id!==id);commit();return true;}
-  if(a==='studyNext'){study.sec='next';keepStudy();setView('study');return true;}
-  if(a==='studyUnit'){study.unit=id;study.sec='topics';keepStudy();setView('study');return true;}
+  if(a==='studyNext'||a==='studyReview'){study.sec='review';keepStudy();setView('study');return true;}
+  if(a==='studyPage'){study.unit=id;study.sec='unit';keepStudy();setView('study');return true;}
+  if(a==='reviewWeek'){selWeek=reviewMon();setView('planner');return true;}
+  if(a==='listAdd'){listDialog(b.dataset.code,b.dataset.list);return true;}
+  if(a==='listEdit'){listDialog(b.dataset.code,b.dataset.list,id);return true;}
+  if(a==='listToggle'){const rows=ensureRows(b.dataset.code,b.dataset.list),L=LISTS[b.dataset.list],x=rows.find(x=>x.id===id);if(x){x[L.toggle]=!x[L.toggle];commit();}return true;}
+  if(a==='studyUnit'){study.unit=id;study.sec='unit';keepStudy();setView('study');return true;}
   return false;
 }
 window.addEventListener('afterprint',()=>document.body.classList.remove('print-sheet'));
@@ -1498,7 +1635,7 @@ function catchupLoad(ds){
 }
 // Missed in the last fortnight and not moved, because the catch-up block was full.
 function unplacedMissed(){const t=iso(today0()),since=iso(addDays(today0(),-14));return state.sessions.filter(s=>!s.done&&s.date<t&&s.date>=since&&s.kind!=='catchup');}
-function planMaintenance(){if(moveMissed())commit();}
+function planMaintenance(){const a=moveMissed(), b=behindHours(); if(a||b) commit();}
 
 /* ---------- template editor ---------- */
 let tplKind='teach';
@@ -1614,8 +1751,10 @@ function taskDialog(t,presetCourse){
       <label class="field"><span class="label">Progress</span><select id="f-stage" name="stage">${STAGES.map(s=>`<option${s===t.stage?' selected':''}>${s}</option>`).join('')}</select></label>
       <label class="field"><span class="label">Mark</span><input id="f-score" type="number" step="any" min="0" name="score" value="${t.score??''}" placeholder="e.g. 17"></label>
       <label class="field"><span class="label">Out of</span><input id="f-max" type="number" step="any" min="0" name="max" value="${t.max??''}" placeholder="e.g. 20"></label>
+      <label class="field"><span class="label">Released</span><input id="f-rel" type="date" name="release" value="${esc(SD().release[t.id]||'')}"><span class="hint">Optional. Used for the “started in release week” check.</span></label>
       <label class="field" style="grid-column:1/-1"><span class="label">Notes</span><input id="f-notes" name="notes" value="${esc(t.notes)}" placeholder="Word limit, submission link, feedback…"></label>
     </div>
+    ${criteriaEditor(t)}
     <details><summary class="label" style="cursor:pointer">Topics this covers</summary><div id="f-covers" style="display:flex;flex-direction:column;gap:2px;padding-top:6px">${topicChecks(t.courseId,coveredBy(t),'covers')}</div><span class="hint">Used by Next up to bring weak topics forward before this is due.</span></details>
     ${isNew?'':`<div class="field"><span class="label">Study sessions for this assessment</span>${ss.map(s=>`<span class="hint">${fmt(s.date,{weekday:'short',day:'numeric',month:'short'})} ${s.start}–${s.end} · ${esc(s.title)}${s.done?' ✓':''}</span>`).join('')||'<span class="hint">None planned yet.</span>'}<div><button class="btn ghost" type="button" id="f-plan">+ Plan a session</button></div></div>`}
     ${actions(isNew?'':'Delete assessment')}`,
@@ -1627,10 +1766,14 @@ function taskDialog(t,presetCourse){
     Object.assign(t,{title,courseId:fd.get('courseId'),type:fd.get('type'),due:fd.get('due'),category:fd.get('category'),stage:fd.get('stage'),notes:fd.get('notes').trim(),score,max});
     if(score!=null) t.stage='Marked';
     if(form.querySelector('#f-covers input')) state.study.covers[t.id]=fd.getAll('covers');
+    const crit=readCriteria(); if(crit.length) SD().criteria[t.id]=crit; else delete SD().criteria[t.id];
+    if(fd.get('release')) SD().release[t.id]=fd.get('release'); else delete SD().release[t.id];
     if(isNew) state.tasks.push(t);
     commit();
-  },()=>{delete state.study.covers[t.id];state.tasks=state.tasks.filter(x=>x.id!==t.id);state.sessions.forEach(s=>{if(s.taskId===t.id)s.taskId=null;});commit();});
+  },()=>{delete state.study.covers[t.id];delete SD().criteria[t.id];delete SD().release[t.id];state.tasks=state.tasks.filter(x=>x.id!==t.id);state.sessions.forEach(s=>{if(s.taskId===t.id)s.taskId=null;});commit();});
   form.querySelector('#f-course').onchange=e=>{form.querySelector('#f-cat').innerHTML=catOpts(e.target.value);form.querySelector('#f-covers').innerHTML=topicChecks(e.target.value,[],'covers');};
+  form.querySelector('#f-critadd').onclick=()=>{form.querySelector('#f-crit').insertAdjacentHTML('beforeend',critRow({id:uid(),text:'',done:false}));form.querySelector('#f-crit .crit:last-child input[name=critText]').focus();};
+  form.querySelector('#f-crit').addEventListener('click',e=>{const d=e.target.closest('[data-critdel]');if(d)d.closest('.crit').remove();});
   const fp=form.querySelector('#f-plan'); if(fp) fp.onclick=()=>{dlg.close();sessionDialog(null,t);};
 }
 
