@@ -27,6 +27,29 @@ Three features need Claude: reading pasted unit outlines, reading screenshots on
 
 The key is kept in that browser only, and each use is billed to that API account. Without a key, everything else still works, including .ics timetable import.
 
+### Keeping your timetable in sync with Outlook
+
+The Desk can refresh your classes and exams from a calendar link every time it opens. Outlook and QUT calendar links can't be read by a web page directly, so GitHub fetches a copy for you every 6 hours and publishes it with the app at a hidden address.
+
+**Setting it up (once):**
+1. **Get your calendar's ICS link.**
+   - **If your timetable reaches Outlook as a subscription** (an internet calendar added *from a link*): Outlook won't publish or export it, so use that original link instead. You can find it in two places:
+     - **The source:** the place that gave you the link, such as the calendar or subscribe option on your QUT timetable page.
+     - **Classic Outlook on Windows:** **File → Account Settings → Account Settings → Internet Calendars**, then select the calendar to see its address.
+     - A `webcal://` link works too.
+   - **If it's an ordinary Outlook calendar:** in Outlook on the web, go to **Settings → Calendar → Shared calendars → Publish a calendar**. Choose the calendar, pick **Can view all details**, and copy the **ICS** link.
+2. **Add two repository secrets.** In this repository, go to **Settings → Secrets and variables → Actions → New repository secret** and add:
+   - `ICAL_URL`: the ICS link.
+   - `ICAL_FILE`: a long random name made of letters and digits, for example `t7k2p9x4m1q8w3z6`. This is the hidden file name.
+3. **Publish the copy.** Under **Actions → Deploy to GitHub Pages → Run workflow**, run the workflow once.
+4. **Point the Desk at it.** In the Desk, open **Settings & backup** and paste `cal/<your ICAL_FILE>.ics` into **Timetable calendar link**, for example `cal/t7k2p9x4m1q8w3z6.ics`. Then press **Save link and sync now**.
+
+**How the sync behaves:**
+- **Classes:** only events whose title has a unit code (like EGD105) become classes. Each sync replaces the classes that came from the link, and classes you added by hand are kept.
+- **Exams and tests:** these become assessments.
+- **Privacy:** the published copy is public to anyone who knows its address. Use a long, random `ICAL_FILE`, and change it if you share the address by mistake.
+- **Pausing:** GitHub pauses scheduled runs in repositories with no activity for 60 days. If the timetable stops refreshing, re-run the workflow.
+
 ## Publishing (GitHub Pages)
 
 The workflow in `.github/workflows/pages.yml` publishes the app every time `main` changes. Before the first run, turn Pages on once: go to **Settings → Pages → Build and deployment** and set **Source** to **GitHub Actions**.
@@ -46,3 +69,4 @@ GitHub Pages on a free account only works for public repositories. If this repos
 | `seed.json` | Your starting semester, loaded only when the browser has no saved planner |
 | `manifest.webmanifest`, `icons/` | Let the app be installed to a home screen |
 | `sw.js` | Keeps the app working offline |
+| `.github/workflows/pages.yml` | Publishes the app, and the timetable copy when its secrets are set |

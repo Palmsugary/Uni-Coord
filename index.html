@@ -881,7 +881,7 @@ function sessionDialog(s,forTask){
 function courseDialog(c){
   const isNew=!c;
   c=c?structuredClone(c):{id:uid(),code:'',name:'',credits:6,color:COLORS[state.courses.length%COLORS.length],coordinator:'',campus:'',meetings:[{day:0,start:'10:00',end:'12:00',type:'Lecture',room:''},{day:2,start:'14:00',end:'15:00',type:'Tutorial',room:''}],grading:[{name:'Assignment',weight:40,hurdle:false},{name:'Final exam',weight:60,hurdle:true}]};
-  const meetRow=m=>`<div class="subrow"><select name="m-type" aria-label="Class type">${CLASS_TYPES.map(x=>`<option${x===m.type?' selected':''}>${x}</option>`).join('')}</select><select name="m-day" aria-label="Day">${DAYS.map((d,j)=>`<option value="${j}"${+m.day===j?' selected':''}>${d}</option>`).join('')}</select><input type="time" name="m-start" value="${m.start}" aria-label="Start"><input type="time" name="m-end" value="${m.end}" aria-label="End"><button class="btn ghost" type="button" data-rm aria-label="Remove class">✕</button><input name="m-room" value="${esc(m.room||'')}" placeholder="Room" aria-label="Room" style="grid-column:1/-1"></div>`;
+  const meetRow=m=>`<div class="subrow"><select name="m-type" aria-label="Class type">${CLASS_TYPES.map(x=>`<option${x===m.type?' selected':''}>${x}</option>`).join('')}</select><select name="m-day" aria-label="Day">${DAYS.map((d,j)=>`<option value="${j}"${+m.day===j?' selected':''}>${d}</option>`).join('')}</select><input type="time" name="m-start" value="${m.start}" aria-label="Start"><input type="time" name="m-end" value="${m.end}" aria-label="End"><button class="btn ghost" type="button" data-rm aria-label="Remove class">✕</button><input name="m-room" value="${esc(m.room||'')}" placeholder="Room" aria-label="Room" style="grid-column:1/-1"><input type="hidden" name="m-src" value="${esc(m.src||'')}">${m.src==='feed'?'<span class="hint" style="grid-column:1/-1">From your timetable link; it will be updated on the next sync.</span>':''}</div>`;
   const gradeRow=g=>`<div class="subrow" style="grid-template-columns:2fr 1fr auto auto"><input name="g-name" value="${esc(g.name)}" aria-label="Component" placeholder="Component"><input type="number" name="g-weight" min="0" max="100" step="any" value="${g.weight}" aria-label="Weighting %"><label class="field inline hint"><input type="checkbox" name="g-hurdle"${g.hurdle?' checked':''}>Hurdle</label><button class="btn ghost" type="button" data-rm aria-label="Remove component">✕</button></div>`;
   openDialog(`<h2>${isNew?'Add unit':'Edit unit'}</h2>
     <div class="fields">
@@ -899,7 +899,7 @@ function courseDialog(c){
     const code=fd.get('code').trim().toUpperCase(), name=fd.get('name').trim();
     if(!code||!name) return 'Enter a unit code and name.';
     if(state.courses.some(x=>x.id!==c.id&&x.code.toUpperCase()===code)) return `You already have a unit with the code ${code}.`;
-    const meetings=[...form.querySelectorAll('#meets .subrow')].map(r=>({type:r.querySelector('[name="m-type"]').value,day:+r.querySelector('[name="m-day"]').value,start:r.querySelector('[name="m-start"]').value,end:r.querySelector('[name="m-end"]').value,room:r.querySelector('[name="m-room"]').value.trim()})).filter(m=>m.start&&m.end);
+    const meetings=[...form.querySelectorAll('#meets .subrow')].map(r=>({type:r.querySelector('[name="m-type"]').value,day:+r.querySelector('[name="m-day"]').value,start:r.querySelector('[name="m-start"]').value,end:r.querySelector('[name="m-end"]').value,room:r.querySelector('[name="m-room"]').value.trim(),...(r.querySelector('[name="m-src"]').value?{src:r.querySelector('[name="m-src"]').value}:{})})).filter(m=>m.start&&m.end);
     if(meetings.some(m=>m.end<=m.start)) return 'Each class must finish after it starts.';
     const grading=[...form.querySelectorAll('#grades .subrow')].map(r=>({name:r.querySelector('[name="g-name"]').value.trim(),weight:+r.querySelector('[name="g-weight"]').value||0,hurdle:r.querySelector('[name="g-hurdle"]').checked})).filter(g=>g.name);
     const old=course(c.id);
@@ -1046,6 +1046,7 @@ async function init(){
   setupClaude();
   if(!loadLocal()&&!(await loadSeed())){render();setStatus('Ready. Your planner saves on this device.');}
   try{navigator.storage?.persist?.();}catch{}
+  if(feedUrl()) syncFeed({quiet:true}).catch(()=>{});
   window.addEventListener('pagehide',save);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)save();});
   window.addEventListener('storage',e=>{if(e.key===STORE_KEY&&e.newValue&&e.newValue!==lastSaved){try{state=normalise(JSON.parse(e.newValue));lastSaved=e.newValue;if(!dlg.open)render();}catch{}}});
@@ -1092,6 +1093,48 @@ function setupClaude(){
   }};
 }
 
+/* ---------- timetable calendar link (sync) ---------- */
+let syncing=false;
+function feedUrl(){return (state.feed&&state.feed.url)||'';}
+async function syncFeed({quiet=false}={}){
+  const url=feedUrl(); if(!url||syncing) return null;
+  syncing=true;
+  try{
+    let res;
+    try{res=await fetch(new URL(url,location.href),{cache:'no-cache'});}
+    catch{throw new Error(/^https?:/i.test(url)&&new URL(url,location.href).origin!==location.origin?'cors':'network');}
+    if(!res.ok) throw new Error(res.status===404?'missing':'http');
+    const text=await res.text();
+    if(!/BEGIN:VCALENDAR/i.test(text)) throw new Error('notcal');
+    const raw=icsToRaw(text);
+    // Replace classes that came from the link; keep classes added by hand.
+    const codes=new Set(raw.classes.map(c=>c.code).filter(Boolean));
+    state.courses.forEach(c=>{c.meetings=(c.meetings||[]).filter(m=>m.src!=='feed');});
+    let nClasses=0,nExams=0;
+    raw.classes.forEach(c=>{
+      if(!c.code) return; const u=unitFor(c.code); const day=DAYS.indexOf(c.day); if(day<0) return;
+      if(u.meetings.some(m=>+m.day===day&&m.start===c.start&&m.end===c.end)) return;
+      u.meetings.push({type:c.type,day,start:c.start,end:c.end,room:c.room||'',src:'feed'}); nClasses++;
+    });
+    raw.assessments.forEach(a=>{
+      if(!a.code) return; const u=unitFor(a.code);
+      let t=state.tasks.find(t=>t.courseId===u.id&&(t.feedTitle===a.title||t.title.toLowerCase()===a.title.toLowerCase()));
+      if(!t){t={id:uid(),courseId:u.id,title:a.title,type:a.type,due:a.due,category:'',stage:'Not started',notes:'',score:null,max:null,feedTitle:a.title};state.tasks.push(t);}
+      else t.due=a.due;
+      nExams++;
+    });
+    state.feed={...state.feed,lastSync:new Date().toISOString(),lastError:'',summary:`${nClasses} weekly class${nClasses===1?'':'es'}${nExams?`, ${nExams} exam${nExams===1?'':'s'} or test${nExams===1?'':'s'}`:''} across ${codes.size} unit${codes.size===1?'':'s'}`};
+    commit();
+    if(!quiet) setStatus(`Timetable synced: ${state.feed.summary}.`);
+    return state.feed.summary;
+  }catch(e){
+    const msg={cors:'This calendar link can’t be read straight from the browser. Set up the GitHub sync described in the README, then use the link it gives you.',missing:'The calendar file wasn’t found. If you use the GitHub sync, check the file name and that the last publish succeeded.',notcal:'That link didn’t return a calendar (.ics) file.',http:'The calendar link returned an error.',network:'Couldn’t reach the calendar link. Check your internet connection.'}[e.message]||'The timetable couldn’t be synced.';
+    state.feed={...state.feed,lastError:msg}; commit();
+    if(!quiet) setStatus(msg);
+    throw new Error(msg);
+  }finally{syncing=false;}
+}
+
 /* ---------- settings, backup and restore ---------- */
 function download(name,body,type='application/json'){
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([body],{type}));a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
@@ -1104,14 +1147,27 @@ function settingsDialog(){
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" id="st-export">Download backup</button>
       <label class="btn" style="display:inline-flex;align-items:center">Restore from backup<input type="file" id="st-import" accept=".json,application/json" hidden></label></div>
       <span class="hint" id="st-msg" role="status"></span></div>
+    <div class="field"><span class="label">Timetable calendar link (optional)</span>
+      <input id="st-feed" name="feed" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://…/cal/your-file.ics" value="${esc(feedUrl())}">
+      <span class="hint">Your classes and exams are refreshed from this link every time the Desk opens. Classes you add by hand are kept. An Outlook or QUT link can’t be read by the browser directly, so use the address from the GitHub sync (see the README).${state.feed?.lastSync?` Last synced ${new Date(state.feed.lastSync).toLocaleString(LOC,{weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}${state.feed.summary?': '+esc(state.feed.summary):''}.`:''}${state.feed?.lastError?` <b style="color:var(--bad)">${esc(state.feed.lastError)}</b>`:''}</span>
+      <div><button class="btn" type="button" id="st-sync">Save link and sync now</button></div></div>
     <label class="field"><span class="label">Claude API key (optional)</span>
       <input id="st-key" name="key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…" value="${esc(key)}">
       <span class="hint">Needed only to read pasted unit outlines and screenshots on the Import tab, and for <i>Plan my week with Claude</i>. Get a key at console.anthropic.com; each use is billed to that account. The key is kept in this browser only. Leave it empty to turn these features off.</span></label>
     ${actions('')}`,fd=>{
       const k=String(fd.get('key')||'').trim();
       try{k?localStorage.setItem(KEY_STORE,k):localStorage.removeItem(KEY_STORE);}catch{return 'This browser is blocking storage, so the key can’t be saved.';}
+      const f=String(fd.get('feed')||'').trim();
+      if(f!==feedUrl()){state.feed=f?{url:f}:null;commit();if(f)syncFeed().catch(()=>{});}
       setupClaude(); render();
     });
+  form.querySelector('#st-sync').onclick=async()=>{
+    const f=form.querySelector('#st-feed').value.trim(), msg=form.querySelector('#st-msg');
+    if(!f){msg.textContent='Paste a calendar link first.';return;}
+    if(f!==feedUrl()) state.feed={url:f};
+    msg.textContent='Syncing…';
+    try{const s=await syncFeed({quiet:true});msg.textContent=`Synced: ${s}.`;}catch(e){msg.textContent=e.message;}
+  };
   form.querySelector('#st-export').onclick=()=>{download(`semester-desk-backup-${iso(today0())}.json`,JSON.stringify(state,null,2));form.querySelector('#st-msg').textContent='Backup downloaded.';};
   form.querySelector('#st-import').onchange=async e=>{
     const f=e.target.files[0]; if(!f) return;
