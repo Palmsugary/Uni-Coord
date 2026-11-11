@@ -8,7 +8,7 @@ It has the same features as the Semester Desk page that was built in Claude:
 - **Week planner:** your classes, due dates and study sessions for any week.
 - **Weekly work:** a checklist of readings, lecture recordings, and tutorial or lab prep for each week.
 - **Assessments:** due dates and hurdles, with stages from *Not started* to *Marked*.
-- **Units & results:** weightings, marks, HD/D/C/P/N grades, and estimates of your WAM and GPA.
+- **Units & results:** weightings, marks, QUT grades (7 to 1, plus result codes like K, S and DA), final results, and estimates of your WAM and GPA.
 - **Import:** reads a timetable calendar file (.ics) right on your device.
 
 ## Using it
