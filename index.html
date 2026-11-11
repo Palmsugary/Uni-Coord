@@ -269,7 +269,19 @@ const CLASS_TYPES=['Lecture','Tutorial','Workshop','Lab','Seminar','Prac','Class
 const TYPES=['Assignment','Quiz','Lab report','Essay','Report','Presentation','Group project','Mid-semester test','Final exam','Participation'];
 const STAGES=['Not started','In progress','Drafting','Final checks','Submitted','Marked'];
 const KINDS=['Reading','Lecture','Tutorial prep','Lab prep','Practice problems','Revision','Other'];
-const BANDS=[[85,'HD','High Distinction',7,4],[75,'D','Distinction',6,3],[65,'C','Credit',5,2],[50,'P','Pass',4,1],[0,'N','Fail',0,0]];
+/* QUT grading scale: [min %, grade, name, 7-point value, 4-point value, max %] */
+const BANDS=[[85,'7','High Distinction',7,4,100],[75,'6','Distinction',6,3,84],[65,'5','Credit',5,2,74],[50,'4','Pass',4,1,64],[40,'3','Marginal Fail',3,0,49],[25,'2','Fail',2,0,39],[0,'1','Low Fail',1,0,24]];
+/* Final results that aren't a 1-7 grade. gpa: counts in the GPA as this 7-point grade (K counts as 1); null = left out of GPA and WAM. */
+const RESULTS={S:{name:'Satisfactory',pass:true,gpa:null},U:{name:'Unsatisfactory',pass:false,gpa:null},K:{name:'Withdrawn - Failure',pass:false,gpa:1},E:{name:'Exempt',pass:true,gpa:null},A:{name:'Result unfinalised',gpa:null},SA:{name:'Supplementary Assessment',gpa:null},DA:{name:'Deferred Assessment',gpa:null},T:{name:'Assessment continues',gpa:null}};
+const bandByGrade=g=>BANDS.find(b=>b[1]===String(g));
+/* What a unit currently shows: its final result if one is entered, otherwise the grade its marks so far point to. */
+function unitResult(c){
+  const r=c.result||'';
+  if(bandByGrade(r)){const B=bandByGrade(r);return {code:r,name:B[2],final:true,g7:B[3],g4:B[4],pct:unitMark(c).pct};}
+  if(RESULTS[r]){const R=RESULTS[r];return {code:r,name:R.name,final:true,g7:R.gpa,g4:R.gpa==null?null:(R.gpa>=4?bandByGrade(R.gpa)[4]:0),pct:null};}
+  const p=unitMark(c).pct,B=band(p);
+  return B?{code:B[1],name:B[2],final:false,g7:B[3],g4:B[4],pct:p}:null;
+}
 const VIEWS=['overview','planner','weekly','deadlines','courses','import'];
 const STORE_KEY='sd-state3';
 
@@ -352,8 +364,9 @@ function unitMark(c){
 const band=p=>p==null?null:BANDS.find(([min])=>p>=min);
 function summary(){
   let cp=0,markSum=0,gp=0;
-  state.courses.forEach(c=>{const p=unitMark(c).pct;if(p==null)return;const w=+c.credits||0;cp+=w;markSum+=p*w;gp+=band(p)[state.term.gpaScale===4?4:3]*w;});
-  return cp?{wam:markSum/cp,gpa:gp/cp,cp}:null;
+  let gcp=0;
+  state.courses.forEach(c=>{const R=unitResult(c);if(!R||R.g7==null)return;const w=+c.credits||0;gcp+=w;gp+=(state.term.gpaScale===4?R.g4:R.g7)*w;if(R.pct!=null){cp+=w;markSum+=R.pct*w;}});
+  return gcp?{wam:cp?markSum/cp:null,gpa:gp/gcp,cp:gcp}:null;
 }
 
 /* ---------- shared bits ---------- */
@@ -429,7 +442,7 @@ function renderOverview(){
   <div class="stats">
     <div class="stat"><span class="label">Due in 7 days</span><span class="v">${week.length}</span><span class="s">${overdue.length?`<span style="color:var(--bad)">${overdue.length} overdue</span>`:'Nothing overdue'}</span></div>
     <div class="stat"><span class="label">This week’s class work</span><span class="v">${cw.filter(x=>x.done).length}<span style="font-size:16px;color:var(--muted)">/${cw.length}</span></span><span class="s">${cw.length?'Items ticked off':'Nothing listed for this week'}</span></div>
-    <div class="stat"><span class="label">Est. WAM</span><span class="v">${sm?sm.wam.toFixed(1):'—'}</span><span class="s">${sm?`${band(sm.wam)[2]} average so far`:'Add marks to see it'}</span></div>
+    <div class="stat"><span class="label">Est. WAM</span><span class="v">${sm&&sm.wam!=null?sm.wam.toFixed(1):'—'}</span><span class="s">${sm&&sm.wam!=null?`${band(sm.wam)[2]} average so far`:'Add marks to see it'}</span></div>
     <div class="stat"><span class="label">Est. GPA</span><span class="v">${sm?sm.gpa.toFixed(2):'—'}<span style="font-size:16px;color:var(--muted)">/${state.term.gpaScale===4?'4':'7'}</span></span><span class="s">${state.courses.length} units · <span class="num">${cp}</span> credit points</span></div>
   </div>
   <div class="grid g3">
@@ -558,11 +571,11 @@ function renderCourses(){
   const el=$('#view-courses');
   const scaleTxt=state.term.gpaScale===4?'4-point':'7-point';
   const cards=state.courses.map(c=>{
-    const g=unitMark(c), B=band(g.pct);
+    const g=unitMark(c), R=unitResult(c);
     const open=state.tasks.filter(t=>t.courseId===c.id&&!isDone(t)).length;
     return `<div class="panel course" style="--cc:var(--${c.color})">
       <div class="top"><div style="display:flex;flex-direction:column;gap:4px;min-width:0">${chip(c)}<h3>${esc(c.name)}</h3></div>
-        <div style="text-align:right"><div class="grade">${B?B[1]:'—'}</div><div class="num status">${g.pct!=null?g.pct.toFixed(1):'no marks'}</div></div></div>
+        <div style="text-align:right"><div class="grade">${R?esc(R.code):'—'}</div><div class="status" style="font-size:12px;max-width:130px;margin-left:auto">${R?esc(R.name)+(R.final?' · final':' · estimate'):''}</div><div class="num status">${g.pct!=null?g.pct.toFixed(1)+'%':'no marks'}</div></div></div>
       <div class="kv"><span>${esc(c.coordinator||'')}</span><span>${esc(c.campus||'')}</span><span class="num">${c.credits} cp</span><span>${open} to do</span><span>${(c.meetings||[]).length} classes a week</span></div>
       <div><div class="label" style="margin-bottom:4px">Weighting marked so far · <span class="num">${g.graded}%</span></div><div class="bar"><i style="width:${Math.min(100,g.graded)}%"></i></div></div>
       ${(c.content||[]).length?`<details><summary class="label" style="cursor:pointer">Unit content · ${c.content.length} topics</summary><ul style="margin:6px 0 0;padding-left:18px;font-size:13px;display:flex;flex-direction:column;gap:3px">${c.content.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></details>`:''}
@@ -570,7 +583,7 @@ function renderCourses(){
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-act="editCourse" data-id="${c.id}">Edit unit</button><button class="btn" type="button" data-act="addTaskFor" data-id="${c.id}">Add assessment</button></div>
     </div>`;
   }).join('');
-  el.innerHTML=`<div class="bands"><span class="label">Grade bands</span>${BANDS.map(([min,k,n,g7,g4])=>`<span><b>${k}</b> ${n} ${min?min+'+':'<50'} <span class="num">(${state.term.gpaScale===4?g4:g7})</span></span>`).join('')}<span>GPA on the ${scaleTxt} scale; change it under Semester dates.</span></div>
+  el.innerHTML=`<div class="bands"><span class="label">Grade bands</span>${BANDS.map(([min,k,n,g7,g4,max])=>`<span><b>${k}</b> ${n} <span class="num">${min?`${min}–${max}`:'<25'}%</span>${state.term.gpaScale===4?` <span class="num">(${g4})</span>`:''}</span>`).join('')}<span>Grades 3, 2 and 1 are fails. K (Withdrawn - Failure) counts as 1 in your GPA; S, U, E, A, SA, DA and T are left out. GPA on the ${scaleTxt} scale; change it under Semester dates.</span></div>
   <div class="grid g3">${cards||'<div class="panel"><p class="empty">No units yet.</p><div style="display:flex;gap:8px"><button class="btn primary" type="button" data-goto="import">Import</button><button class="btn" type="button" data-act="addCourse">Add a unit by hand</button></div></div>'}</div>`;
 }
 
@@ -940,6 +953,7 @@ function courseDialog(c){
       <label class="field" style="grid-column:span 2"><span class="label">Unit name</span><input id="c-name" name="name" required value="${esc(c.name)}" placeholder="Chemistry 1A"></label>
       <label class="field"><span class="label">Credit points</span><input id="c-cr" type="number" min="0" step="0.5" name="credits" value="${c.credits}"></label>
       <label class="field"><span class="label">Unit coordinator</span><input id="c-coord" name="coordinator" value="${esc(c.coordinator)}"></label>
+      <label class="field"><span class="label">Final result</span><select id="c-result" name="result"><option value="">Not released (estimate from marks)</option><optgroup label="Grades">${BANDS.map(b=>`<option value="${b[1]}"${c.result===b[1]?' selected':''}>${b[1]} · ${b[2]}</option>`).join('')}</optgroup><optgroup label="Other results">${Object.entries(RESULTS).map(([k,v])=>`<option value="${k}"${c.result===k?' selected':''}>${k} · ${v.name}</option>`).join('')}</optgroup></select></label>
       <label class="field" style="grid-column:1/-1"><span class="label">Unit content (one topic per line)</span><textarea id="c-content" name="content" style="min-height:90px">${esc((c.content||[]).join('\n'))}</textarea></label>
       <label class="field"><span class="label">Campus</span><input id="c-campus" name="campus" value="${esc(c.campus)}"></label>
       <label class="field"><span class="label">Colour</span><select id="c-color" name="color">${COLORS.map((k,i)=>`<option value="${k}"${k===c.color?' selected':''}>Colour ${i+1}</option>`).join('')}</select></label>
@@ -956,7 +970,7 @@ function courseDialog(c){
     const grading=[...form.querySelectorAll('#grades .subrow')].map(r=>({name:r.querySelector('[name="g-name"]').value.trim(),weight:+r.querySelector('[name="g-weight"]').value||0,hurdle:r.querySelector('[name="g-hurdle"]').checked})).filter(g=>g.name);
     const old=course(c.id);
     if(old){(old.grading||[]).forEach((g,i)=>{if(grading[i]&&grading[i].name!==g.name)state.tasks.forEach(t=>{if(t.courseId===c.id&&t.category===g.name)t.category=grading[i].name;});});}
-    Object.assign(c,{code,name,credits:+fd.get('credits')||0,coordinator:fd.get('coordinator').trim(),content:String(fd.get('content')||'').split('\n').map(t=>t.replace(/^[\s*•-]+/,'').trim()).filter(Boolean),campus:fd.get('campus').trim(),color:fd.get('color'),meetings,grading});
+    Object.assign(c,{code,name,credits:+fd.get('credits')||0,coordinator:fd.get('coordinator').trim(),result:fd.get('result')||'',content:String(fd.get('content')||'').split('\n').map(t=>t.replace(/^[\s*•-]+/,'').trim()).filter(Boolean),campus:fd.get('campus').trim(),color:fd.get('color'),meetings,grading});
     if(isNew) state.courses.push(c); else state.courses[state.courses.findIndex(x=>x.id===c.id)]=c;
     commit();
   },()=>{state.courses=state.courses.filter(x=>x.id!==c.id);state.tasks=state.tasks.filter(t=>t.courseId!==c.id);state.classwork=state.classwork.filter(x=>x.courseId!==c.id);state.sessions=state.sessions.filter(x=>x.courseId!==c.id);commit();});
