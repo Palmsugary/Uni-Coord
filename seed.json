@@ -1,0 +1,449 @@
+{
+ "v": 3,
+ "term": {
+  "name": "Summer Semester, 2026",
+  "start": "2026-11-16",
+  "census": "2026-12-04",
+  "breakStart": "2026-12-25",
+  "breakEnd": "2027-01-01",
+  "swotStart": "",
+  "examStart": "2027-01-28",
+  "end": "2027-02-12",
+  "gpaScale": 7
+ },
+ "courses": [
+  {
+   "id": "oh2ohfd",
+   "code": "EGD101",
+   "name": "Engineering Design and Professional Practice",
+   "credits": 12,
+   "color": "c1",
+   "coordinator": "",
+   "campus": "Kelvin Grove",
+   "meetings": [],
+   "grading": []
+  },
+  {
+   "id": "ayjmvf0",
+   "code": "EGD102",
+   "name": "Fundamentals of Engineering Science",
+   "credits": 12,
+   "color": "c3",
+   "coordinator": "",
+   "campus": "Kelvin Grove",
+   "meetings": [],
+   "grading": []
+  },
+  {
+   "id": "8j7m8x8",
+   "code": "EGD105",
+   "name": "Modelling with Introductory Calculus",
+   "credits": 12,
+   "color": "c5",
+   "coordinator": "",
+   "campus": "Kelvin Grove",
+   "meetings": [],
+   "grading": []
+  },
+  {
+   "id": "13ine8q",
+   "code": "QCD210",
+   "name": "Academic Communication 2",
+   "credits": 12,
+   "color": "c2",
+   "coordinator": "",
+   "campus": "Kelvin Grove",
+   "meetings": [],
+   "grading": []
+  }
+ ],
+ "tasks": [],
+ "classwork": [
+  {
+   "id": "8pd9avo",
+   "courseId": "8j7m8x8",
+   "weekOf": "2026-11-16",
+   "title": "Tutorial problem set, done by hand",
+   "kind": "Practice problems",
+   "done": false
+  },
+  {
+   "id": "zy45p5p",
+   "courseId": "8j7m8x8",
+   "weekOf": "2026-11-16",
+   "title": "Update error log and formula flashcards",
+   "kind": "Revision",
+   "done": false
+  },
+  {
+   "id": "rjypzjv",
+   "courseId": "ayjmvf0",
+   "weekOf": "2026-11-16",
+   "title": "Worked problems on this week's topic",
+   "kind": "Practice problems",
+   "done": false
+  },
+  {
+   "id": "qb5da7g",
+   "courseId": "ayjmvf0",
+   "weekOf": "2026-11-16",
+   "title": "Lab prep or write-up within 48 h",
+   "kind": "Lab prep",
+   "done": false
+  },
+  {
+   "id": "t39daka",
+   "courseId": "oh2ohfd",
+   "weekOf": "2026-11-16",
+   "title": "Team project task and design log entry",
+   "kind": "Other",
+   "done": false
+  },
+  {
+   "id": "0jenyge",
+   "courseId": "13ine8q",
+   "weekOf": "2026-11-16",
+   "title": "Readings and notes",
+   "kind": "Reading",
+   "done": false
+  },
+  {
+   "id": "9a13ucd",
+   "courseId": "8j7m8x8",
+   "weekOf": "2026-11-23",
+   "title": "Tutorial problem set, done by hand",
+   "kind": "Practice problems",
+   "done": false
+  },
+  {
+   "id": "8i3ogpl",
+   "courseId": "8j7m8x8",
+   "weekOf": "2026-11-23",
+   "title": "Update error log and formula flashcards",
+   "kind": "Revision",
+   "done": false
+  },
+  {
+   "id": "32mh4up",
+   "courseId": "ayjmvf0",
+   "weekOf": "2026-11-23",
+   "title": "Worked problems on this week's topic",
+   "kind": "Practice problems",
+   "done": false
+  },
+  {
+   "id": "knp6efg",
+   "courseId": "ayjmvf0",
+   "weekOf": "2026-11-23",
+   "title": "Lab prep or write-up within 48 h",
+   "kind": "Lab prep",
+   "done": false
+  },
+  {
+   "id": "6xy4h1p",
+   "courseId": "oh2ohfd",
+   "weekOf": "2026-11-23",
+   "title": "Team project task and design log entry",
+   "kind": "Other",
+   "done": false
+  },
+  {
+   "id": "2jen4wv",
+   "courseId": "13ine8q",
+   "weekOf": "2026-11-23",
+   "title": "Readings and notes",
+   "kind": "Reading",
+   "done": false
+  },
+  {
+   "id": "ucicrnp",
+   "courseId": "8j7m8x8",
+   "weekOf": "2026-11-30",
+   "title": "Tutorial problem set, done by hand",
+   "kind": "Practice problems",
+   "done": false
+  },
+  {
+   "id": "6athrn1",
+   "courseId": "8j7m8x8",
+   "weekOf": "2026-11-30",
+   "title": "Update error log and formula flashcards",
+   "kind": "Revision",
+   "done": false
+  },
+  {
+   "id": "xb0mksr",
+   "courseId": "ayjmvf0",
+   "weekOf": "2026-11-30",
+   "title": "Worked problems on this week's topic",
+   "kind": "Practice problems",
+   "done": false
+  },
+  {
+   "id": "cmgu1xp",
+   "courseId": "ayjmvf0",
+   "weekOf": "2026-11-30",
+   "title": "Lab prep or write-up within 48 h",
+   "kind": "Lab prep",
+   "done": false
+  },
+  {
+   "id": "vakd3sk",
+   "courseId": "oh2ohfd",
+   "weekOf": "2026-11-30",
+   "title": "Team project task and design log entry",
+   "kind": "Other",
+   "done": false
+  },
+  {
+   "id": "9v2rn22",
+   "courseId": "13ine8q",
+   "weekOf": "2026-11-30",
+   "title": "Readings and notes",
+   "kind": "Reading",
+   "done": false
+  },
+  {
+   "id": "2m68iuk",
+   "courseId": "8j7m8x8",
+   "weekOf": "2026-12-07",
+   "title": "Tutorial problem set, done by hand",
+   "kind": "Practice problems",
+   "done": false
+  },
+  {
+   "id": "x0pcmxz",
+   "courseId": "8j7m8x8",
+   "weekOf": "2026-12-07",
+   "title": "Update error log and formula flashcards",
+   "kind": "Revision",
+   "done": false
+  },
+  {
+   "id": "r7qjfw6",
+   "courseId": "ayjmvf0",
+   "weekOf": "2026-12-07",
+   "title": "Worked problems on this week's topic",
+   "kind": "Practice problems",
+   "done": false
+  },
+  {
+   "id": "rktis3u",
+   "courseId": "ayjmvf0",
+   "weekOf": "2026-12-07",
+   "title": "Lab prep or write-up within 48 h",
+   "kind": "Lab prep",
+   "done": false
+  },
+  {
+   "id": "bjskgi1",
+   "courseId": "oh2ohfd",
+   "weekOf": "2026-12-07",
+   "title": "Team project task and design log entry",
+   "kind": "Other",
+   "done": false
+  },
+  {
+   "id": "y2ax3p3",
+   "courseId": "13ine8q",
+   "weekOf": "2026-12-07",
+   "title": "Readings and notes",
+   "kind": "Reading",
+   "done": false
+  },
+  {
+   "id": "x4sefoc",
+   "courseId": "8j7m8x8",
+   "weekOf": "2026-12-14",
+   "title": "Tutorial problem set, done by hand",
+   "kind": "Practice problems",
+   "done": false
+  },
+  {
+   "id": "fosbvhl",
+   "courseId": "8j7m8x8",
+   "weekOf": "2026-12-14",
+   "title": "Update error log and formula flashcards",
+   "kind": "Revision",
+   "done": false
+  },
+  {
+   "id": "0hj026t",
+   "courseId": "ayjmvf0",
+   "weekOf": "2026-12-14",
+   "title": "Worked problems on this week's topic",
+   "kind": "Practice problems",
+   "done": false
+  },
+  {
+   "id": "yxuuq2p",
+   "courseId": "ayjmvf0",
+   "weekOf": "2026-12-14",
+   "title": "Lab prep or write-up within 48 h",
+   "kind": "Lab prep",
+   "done": false
+  },
+  {
+   "id": "f28fiud",
+   "courseId": "oh2ohfd",
+   "weekOf": "2026-12-14",
+   "title": "Team project task and design log entry",
+   "kind": "Other",
+   "done": false
+  },
+  {
+   "id": "iwdlbwt",
+   "courseId": "13ine8q",
+   "weekOf": "2026-12-14",
+   "title": "Readings and notes",
+   "kind": "Reading",
+   "done": false
+  },
+  {
+   "id": "06b0y5l",
+   "courseId": "8j7m8x8",
+   "weekOf": "2027-01-04",
+   "title": "Tutorial problem set, done by hand",
+   "kind": "Practice problems",
+   "done": false
+  },
+  {
+   "id": "eptnvjj",
+   "courseId": "8j7m8x8",
+   "weekOf": "2027-01-04",
+   "title": "Update error log and formula flashcards",
+   "kind": "Revision",
+   "done": false
+  },
+  {
+   "id": "h6aovft",
+   "courseId": "ayjmvf0",
+   "weekOf": "2027-01-04",
+   "title": "Worked problems on this week's topic",
+   "kind": "Practice problems",
+   "done": false
+  },
+  {
+   "id": "6cctfjo",
+   "courseId": "ayjmvf0",
+   "weekOf": "2027-01-04",
+   "title": "Lab prep or write-up within 48 h",
+   "kind": "Lab prep",
+   "done": false
+  },
+  {
+   "id": "gdqfaiy",
+   "courseId": "oh2ohfd",
+   "weekOf": "2027-01-04",
+   "title": "Team project task and design log entry",
+   "kind": "Other",
+   "done": false
+  },
+  {
+   "id": "2yksv7c",
+   "courseId": "13ine8q",
+   "weekOf": "2027-01-04",
+   "title": "Readings and notes",
+   "kind": "Reading",
+   "done": false
+  },
+  {
+   "id": "qv0eh6j",
+   "courseId": "8j7m8x8",
+   "weekOf": "2027-01-11",
+   "title": "Tutorial problem set, done by hand",
+   "kind": "Practice problems",
+   "done": false
+  },
+  {
+   "id": "te16fp3",
+   "courseId": "8j7m8x8",
+   "weekOf": "2027-01-11",
+   "title": "Update error log and formula flashcards",
+   "kind": "Revision",
+   "done": false
+  },
+  {
+   "id": "sft2jhl",
+   "courseId": "ayjmvf0",
+   "weekOf": "2027-01-11",
+   "title": "Worked problems on this week's topic",
+   "kind": "Practice problems",
+   "done": false
+  },
+  {
+   "id": "bkc25gg",
+   "courseId": "ayjmvf0",
+   "weekOf": "2027-01-11",
+   "title": "Lab prep or write-up within 48 h",
+   "kind": "Lab prep",
+   "done": false
+  },
+  {
+   "id": "7py9ail",
+   "courseId": "oh2ohfd",
+   "weekOf": "2027-01-11",
+   "title": "Team project task and design log entry",
+   "kind": "Other",
+   "done": false
+  },
+  {
+   "id": "7l35s3e",
+   "courseId": "13ine8q",
+   "weekOf": "2027-01-11",
+   "title": "Readings and notes",
+   "kind": "Reading",
+   "done": false
+  },
+  {
+   "id": "9g95x39",
+   "courseId": "8j7m8x8",
+   "weekOf": "2027-01-18",
+   "title": "Tutorial problem set, done by hand",
+   "kind": "Practice problems",
+   "done": false
+  },
+  {
+   "id": "znf79vl",
+   "courseId": "8j7m8x8",
+   "weekOf": "2027-01-18",
+   "title": "Update error log and formula flashcards",
+   "kind": "Revision",
+   "done": false
+  },
+  {
+   "id": "ulc83fv",
+   "courseId": "ayjmvf0",
+   "weekOf": "2027-01-18",
+   "title": "Worked problems on this week's topic",
+   "kind": "Practice problems",
+   "done": false
+  },
+  {
+   "id": "nui3nq6",
+   "courseId": "ayjmvf0",
+   "weekOf": "2027-01-18",
+   "title": "Lab prep or write-up within 48 h",
+   "kind": "Lab prep",
+   "done": false
+  },
+  {
+   "id": "z1yjcls",
+   "courseId": "oh2ohfd",
+   "weekOf": "2027-01-18",
+   "title": "Team project task and design log entry",
+   "kind": "Other",
+   "done": false
+  },
+  {
+   "id": "daq13vx",
+   "courseId": "13ine8q",
+   "weekOf": "2027-01-18",
+   "title": "Readings and notes",
+   "kind": "Reading",
+   "done": false
+  }
+ ],
+ "sessions": [],
+ "example": false
+}
