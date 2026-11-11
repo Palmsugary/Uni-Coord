@@ -637,13 +637,32 @@ function icsDate(v){
 }
 const unesc=s=>String(s||'').replace(/\\n/gi,' ').replace(/\\([,;\\])/g,'$1').trim();
 const hhmm=d=>`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-const CODE_RE=/\b([A-Z]{3,4}\s?\d{3,4}[A-Z]?)\b/;
-function classType(s){return /lec/i.test(s)?'Lecture':/tut/i.test(s)?'Tutorial':/lab/i.test(s)?'Lab':/work\s?shop/i.test(s)?'Workshop':/semin/i.test(s)?'Seminar':/prac/i.test(s)?'Prac':'Class';}
+// Unit codes like EGD105, QCD210 or COMP2123, even inside titles such as "EGD105_SUM_LEC_01".
+const CODE_RE=/(?:^|[^A-Z0-9])([A-Z]{3,4}\s?\d{3,4})(?![0-9])/;
+function classType(s){return /lec/i.test(s)?'Lecture':/tut/i.test(s)?'Tutorial':/lab/i.test(s)?'Lab':/work\s?shop|wks/i.test(s)?'Workshop':/semin/i.test(s)?'Seminar':/prac/i.test(s)?'Prac':'Class';}
+function icsDuration(v){const m=String(v||'').match(/^P(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?)?/);if(!m)return 0;return ((+m[1]||0)*7*1440+(+m[2]||0)*1440+(+m[3]||0)*60+(+m[4]||0))*6e4;}
+function eventCode(ev){
+  const known=state.courses.map(c=>c.code.toUpperCase());
+  for(const k of ['SUMMARY','DESCRIPTION','CATEGORIES','LOCATION']){
+    const t=unesc(ev[k]).toUpperCase(); if(!t) continue;
+    const hit=known.find(c=>t.replace(/\s/g,'').includes(c)); if(hit) return hit;
+    const m=t.match(CODE_RE); if(m&&k!=='LOCATION') return m[1].replace(/\s/g,'');
+  }
+  return '';
+}
 function icsToRaw(text){
   const raw={units:[],classes:[],assessments:[],classwork:[],sessions:[]}, seen=new Set();
+  const T=state.term, from=T.start?addDays(D(T.start),-7):null, to=T.end?addDays(D(T.end),1):null;
+  const st={events:0,withCode:0,inTerm:0,noCode:[]};
   parseICS(text).forEach(ev=>{
-    const s=icsDate(ev.DTSTART), e=icsDate(ev.DTEND); if(!s) return;
-    const sum=unesc(ev.SUMMARY), code=(sum.toUpperCase().match(CODE_RE)||[])[1]?.replace(/\s/g,'')||'';
+    const s=icsDate(ev.DTSTART); if(!s) return;
+    const e=icsDate(ev.DTEND)||(ev.DURATION?new Date(+s+icsDuration(ev.DURATION)):null);
+    st.events++;
+    const sum=unesc(ev.SUMMARY), code=eventCode(ev);
+    if(!code){if(st.noCode.length<5&&sum&&!st.noCode.includes(sum))st.noCode.push(sum);return;}
+    st.withCode++;
+    if(!ev.RRULE&&from&&to&&(s<from||s>to)) return;
+    st.inTerm++;
     if(/exam|test|quiz/i.test(sum)&&!ev.RRULE){raw.assessments.push({code,title:sum,type:/exam/i.test(sum)?'Final exam':/test/i.test(sum)?'Mid-semester test':'Quiz',due:iso(s)});return;}
     const day=(s.getDay()+6)%7; if(day>4||!e) return;
     const c={code,type:classType(sum),day:DAYS[day],start:hhmm(s),end:hhmm(e),room:unesc(ev.LOCATION)};
@@ -651,6 +670,7 @@ function icsToRaw(text){
     raw.classes.push(c);
   });
   [...new Set([...raw.classes,...raw.assessments].map(x=>x.code).filter(Boolean))].forEach(code=>raw.units.push({code,name:null,credits:null,coordinator:null}));
+  raw.stats=st;
   return raw;
 }
 
@@ -1121,6 +1141,7 @@ async function syncFeed({quiet=false}={}){
     const raw=icsToRaw(text);
     // Replace classes that came from the link; keep classes added by hand.
     const codes=new Set(raw.classes.map(c=>c.code).filter(Boolean));
+    const before=state.courses.map(c=>[c,c.meetings]);
     state.courses.forEach(c=>{c.meetings=(c.meetings||[]).filter(m=>m.src!=='feed');});
     let nClasses=0,nExams=0;
     raw.classes.forEach(c=>{
@@ -1135,11 +1156,22 @@ async function syncFeed({quiet=false}={}){
       else t.due=a.due;
       nExams++;
     });
+    const S=raw.stats;
+    if(!nClasses&&!nExams){
+      const why=!S.events?'The calendar has no events in it.'
+        :!S.withCode?`It has ${S.events} events, but none mention a unit code (like EGD105). Titles look like: ${S.noCode.map(t=>'“'+t+'”').join(', ')}.`
+        :!S.inTerm?`It has ${S.withCode} events with unit codes, but none fall between ${fmt(state.term.start)} and ${fmt(state.term.end)}. Your Summer timetable may not be in the feed yet.`
+        :'Its events with unit codes are all on weekends or have no end time.';
+      before.forEach(([c,m])=>{c.meetings=m;}); // keep the last good timetable
+      state.feed={...state.feed,lastSync:new Date().toISOString(),lastError:'Synced, but no classes were found. '+why,summary:''};
+      commit(); if(!quiet) setStatus(state.feed.lastError); throw new Error(state.feed.lastError);
+    }
     state.feed={...state.feed,lastSync:new Date().toISOString(),lastError:'',summary:`${nClasses} weekly class${nClasses===1?'':'es'}${nExams?`, ${nExams} exam${nExams===1?'':'s'} or test${nExams===1?'':'s'}`:''} across ${codes.size} unit${codes.size===1?'':'s'}`};
     commit();
     if(!quiet) setStatus(`Timetable synced: ${state.feed.summary}.`);
     return state.feed.summary;
   }catch(e){
+    if(e.message&&e.message.startsWith('Synced, but')) throw e;
     const msg={cors:'This calendar link can’t be read straight from the browser. Set up the GitHub sync described in the README, then use the link it gives you.',missing:'The calendar file wasn’t found. If you use the GitHub sync, check the file name and that the last publish succeeded.',notcal:'That link didn’t return a calendar (.ics) file.',http:'The calendar link returned an error.',network:'Couldn’t reach the calendar link. Check your internet connection.'}[e.message]||'The timetable couldn’t be synced.';
     state.feed={...state.feed,lastError:msg}; commit();
     if(!quiet) setStatus(msg);
