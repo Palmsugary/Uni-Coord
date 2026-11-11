@@ -585,7 +585,7 @@ function renderImport(){
         <div class="drop" id="drop">
           <b>Upload files</b>
           <span class="hint">Timetable calendar file (.ics), screenshots of your timetable or LMS pages, or text files.</span>
-          <input type="file" id="imFiles" multiple accept=".ics,.json,.txt,.csv,.md,image/*">
+          <input type="file" id="imFiles" multiple accept=".ics,.json,.txt,.csv,.md,text/plain,application/json,text/calendar,image/*">
           <div class="files" id="imList"></div>
         </div>
         <label class="field"><span class="label">Or paste text</span><textarea id="imText" placeholder="Paste the assessment table from a unit outline, a weekly reading list, your timetable as text, an LMS announcement…"></textarea></label>
@@ -692,31 +692,49 @@ MATERIAL:
 ${text||'(see images)'}`;
 }
 let imCtl=null;
+// A Semester Desk import file (units/classes/assessments/classwork), from a file or pasted text.
+function asImport(text){
+  const t=String(text||'').trim(); if(!t.startsWith('{')) return null;
+  try{const j=JSON.parse(t);return j&&['units','classes','assessments','classwork'].some(k=>Array.isArray(j[k]))?j:null;}catch{return null;}
+}
 async function readImport(){
-  const out=$('#imBusy'), text=$('#imText').value.trim();
+  const out=$('#imBusy'); let text=$('#imText').value.trim();
   const ics=pendingFiles.filter(f=>/\.ics$/i.test(f.name)||f.type==='text/calendar');
   const imgs=pendingFiles.filter(f=>f.type.startsWith('image/'));
-  const jsons=pendingFiles.filter(f=>/\.json$/i.test(f.name)||f.type==='application/json');
-  const txts=pendingFiles.filter(f=>!ics.includes(f)&&!imgs.includes(f)&&!jsons.includes(f));
+  const others=pendingFiles.filter(f=>!ics.includes(f)&&!imgs.includes(f));
   if(!text&&!pendingFiles.length){out.textContent='Choose a file or paste some text first.';return;}
   let raw={units:[],classes:[],assessments:[],classwork:[],sessions:[]};
   const merge=r=>{for(const k in raw) raw[k].push(...(r[k]||[]));};
+  let local=ics.length;
   try{
     for(const f of ics) merge(icsToRaw(await readText(f)));
-    for(const f of jsons){let j;try{j=JSON.parse(await readText(f));}catch{throw {code:'bad_json'};}if(!j||!['units','classes','assessments','classwork'].some(k=>Array.isArray(j[k])))throw {code:'bad_json'};merge(j);}
-    let body=text; for(const f of txts) body+=`\n\n--- ${f.name} ---\n`+await readText(f);
-    if(body.trim()||imgs.length){
-      if(!sampleFn){out.textContent=ics.length?'':'Reading pasted text and images needs a Claude API key. Add one under Settings & backup, or upload a calendar (.ics) file instead, which works without one.';if(!ics.length)return;}
-      else{
+    // Import files are read on this device (whatever the file is called), so they never need a key.
+    let body='';
+    for(const f of others){
+      const t=await readText(f), j=asImport(t);
+      if(j){merge(j);local++;}
+      else if(/\.json$/i.test(f.name)) throw {code:'bad_json'};
+      else body+=`\n\n--- ${f.name} ---\n`+t;
+    }
+    const pj=asImport(text); if(pj){merge(pj);local++;text='';}
+    body=(text+body).trim();
+    if(body||imgs.length){
+      if(!sampleFn){
+        const msg='Reading pasted text and images needs a Claude API key. Add one under Settings & backup. Calendar (.ics) files and Semester Desk import files work without one.';
+        if(!local){out.textContent=msg;return;}
+        out.textContent='Your files are in the preview below. The pasted text was skipped, because reading it needs a Claude API key (Settings & backup).';
+      }else{
         if(imgs.length&&!sampleImages){out.textContent='Images can’t be sent from this view. Paste the text instead.';return;}
         imCtl=new AbortController(); $('#imStop').hidden=false; $('#imStop').onclick=()=>imCtl.abort();
         $('#imRead').disabled=true; out.textContent='Claude is reading it… this can take up to a minute.';
         const opts={signal:imCtl.signal}; if(imgs.length) opts.images=imgs.slice(0,sampleImages.maxCount);
         merge(await sampleFn.json(aiPrompt(body,imgs.length),opts)||{});
+        out.textContent='';
       }
     }
     proposal=buildProposal(raw);
-    out.textContent=proposal.count?'':'Nothing to add was found in that material.';
+    if(!proposal.count) out.textContent='Nothing new to add was found in that material.';
+    else if(!sampleFn&&!(body||imgs.length)) out.textContent='';
   }catch(e){
     out.textContent={cancelled:'Stopped.',not_granted:'Claude rejected the API key. Check it under Settings & backup.',network:'Claude couldn’t be reached. Check your internet connection.',rate_limited:'Too many requests just now. Wait a minute and try again.',prompt_too_large:'That’s too much text at once. Paste one unit outline at a time.',invalid_json:'Claude’s answer couldn’t be read. Try again, or paste less at once.',refused:'Claude declined to read that material.',bad_json:'That .json file isn’t a Semester Desk import file. (To restore a full backup, use Settings & backup.)'}[e?.code]||'That couldn’t be read. Check the file and try again.';
   }finally{$('#imRead').disabled=false;$('#imStop').hidden=true;}
