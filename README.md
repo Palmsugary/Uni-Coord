@@ -32,7 +32,12 @@ The key is kept in that browser only, and each use is billed to that API account
 The Desk can refresh your classes and exams from a calendar link every time it opens. Outlook and QUT calendar links can't be read by a web page directly, so GitHub fetches a copy for you every 6 hours and publishes it with the app at a hidden address.
 
 **Setting it up (once):**
-1. **Get your calendar's ICS link.** In Outlook on the web, go to **Settings → Calendar → Shared calendars → Publish a calendar**, choose the calendar, pick **Can view all details**, and copy the **ICS** link.
+1. **Get your calendar's ICS link.**
+   - **If your timetable reaches Outlook as a subscription** (an internet calendar added *from a link*): Outlook won't publish or export it, so use that original link instead. You can find it in two places:
+     - **The source:** the place that gave you the link, such as the calendar or subscribe option on your QUT timetable page.
+     - **Classic Outlook on Windows:** **File → Account Settings → Account Settings → Internet Calendars**, then select the calendar to see its address.
+     - A `webcal://` link works too.
+   - **If it's an ordinary Outlook calendar:** in Outlook on the web, go to **Settings → Calendar → Shared calendars → Publish a calendar**. Choose the calendar, pick **Can view all details**, and copy the **ICS** link.
 2. **Add two repository secrets.** In this repository, go to **Settings → Secrets and variables → Actions → New repository secret** and add:
    - `ICAL_URL`: the ICS link.
    - `ICAL_FILE`: a long random name made of letters and digits, for example `t7k2p9x4m1q8w3z6`. This is the hidden file name.
