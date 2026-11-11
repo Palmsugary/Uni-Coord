@@ -12,17 +12,38 @@ It has the same features as the Semester Desk page that was built in Claude:
 - **Import:** reads a timetable calendar file (.ics) or a Canvas course download right on your device.
 - **Study:** a supplement to your handwritten notes, with a *Next up* list of what to study next, short summaries, a printable formula sheet, an SI units reference, and a weak-areas tracker with a mistake log.
 
+### Weekly study blocks
+
+Press **Weekly study template** in the Week planner. The Desk builds a week of study blocks around your classes: two 2-hour deep-work blocks a day from Monday to Saturday (each unit three times a week, 24 hours in all), a 1-hour light block most evenings, and a 2-hour **catch-up** block on Friday. Sunday stays free for your weekly review. The **Mid-semester break** template is about 5 hours a day of consolidation. Change any block, then press **Save and fill my planner** to place the blocks from today to the end of term. A block that would clash with a class moves to the nearest free time that day. Christmas Day is always left free, and you can add other days off.
+
+Re-saving the template replaces future template sessions you haven't touched. Sessions you've edited, ticked off or added yourself are kept.
+
+**Missed sessions:** a study session from an earlier day that isn't ticked off moves into the next Friday catch-up block, never onto the next day. If the catch-up block is full, the planner says how much didn't fit, which is the cue to make next week's template lighter. Tick sessions off as you finish them, from the Overview's *Today* list or by opening them in the planner.
+
+**On your phone and in Outlook:** with sync turned on, open **Settings & backup → Study sessions in your phone or Outlook calendar** and press **Make my calendar link**. Subscribe to that link once in Outlook (*Add calendar → Subscribe from web*), on iPhone (*Settings → Calendar → Accounts → Add Subscribed Calendar*) or in Google Calendar (*From URL*). Each study session then appears with a reminder 10 minutes before it, and the link updates whenever the Desk syncs. Calendars refresh subscriptions every hour or few. The link is a second secret gist that holds only your study sessions. Keep it private.
+
 ### The Study tab
 
-Your handwritten notes stay your main record. The Study tab holds what's worth having on every device:
+Your handwritten notebooks (one per unit) are the record. The Study tab holds what's worth having on every device, filled in during a 10-minute wrap-up each study day:
 
-- **Next up** ranks what to study next from this week's class work (and anything left over), assessments due in the next three weeks (by weighting and days left), topics you've rated *Not yet* or *Shaky*, and items you add yourself. Each item says why it's there. **Plan it** books a study session in the Week planner, and once a session is booked the item says when and drops down the list. The top few also show on the Overview.
-- **Summaries** are short notes per unit and week, written in Markdown with maths between dollar signs: `$v = u + at$` inline, or `$$\int_a^b f(x)\,dx$$` on its own line. Use **+ Note** on any Weekly work item or assessment to start one already filled in.
-- **Formula sheet** groups formulas by unit and topic, with what each symbol means and when to use it. **Add them** loads the EGD105 and EGD102 starter formulas (standard maths and physics, so check them against your lecture notes). **Print or save as PDF** gives a two-column sheet.
-- **Topics & weak areas** lists each unit's topics (from its Canvas download, or ones you add). Rate each one *Not yet*, *Shaky*, *OK* or *Solid*, and press **Practised today** after working on it. The **Mistake log** records what went wrong, why, and the fix; logging one lowers that topic's rating a level.
-- **SI units** has the base and derived units, prefixes and common constants, and you can add your own rows.
+- **Sunday review** is where *Next up* lives. It suggests what deserves next week's study blocks: class work left over, assessments due in the next three weeks, topics rated *Not yet* or *Shaky*, and anything you add. Choose a block from **Put into a block…** and that block takes the suggestion as its focus. During the week, just follow the schedule. On weekends the Overview shows a *Weekly review* button.
+- **Lecture index**: one line per lecture with what it covered and the notebook page. **+ Note** on a Weekly work item starts one.
+- **Unit pages**: each unit's target grade (6 by default) and how its marks compare. If a unit is below target after two marks, the page suggests moving one weekly block to it from your safest unit. Each page also has lists suited to the unit:
+  - **EGD105:** methods and its formula sheet.
+  - **EGD102:** its formula sheet, a lab tracker and a problem-solving checklist.
+  - **EGD101:** a design decision log and team actions.
+  - **QCD210:** a source library, a referencing checklist (APA 7) and a GenAI use log.
+- **Formula sheet**: add each formula the first time you meet it, with what every symbol means and its SI unit. **Print or save as PDF** gives a two-column sheet.
+- **Topics & mistakes**: rate each topic *Not yet*, *Shaky*, *OK* or *Solid*, and log mistakes (what went wrong, why, the fix). A unit without a Canvas content list takes its topics from Weekly work items titled "Topic: …".
+- **SI units**: base and derived units, prefixes and constants, plus your own rows.
 
-An assessment's **Topics this covers** (in its edit window) tells Next up which weak topics to bring forward before it's due. The Desk fills this in from topics named in the assessment's notes, and a final exam covers every topic. Study data is saved, backed up and synced like everything else. Maths and Markdown need a one-time download from jsDelivr, after which they work offline.
+**Assessments** also get **Marking criteria**: copy in the rubric lines, tick each as your work meets it, and the assessment row shows how many are met. You can also add a **Released** date and the **Topics this covers**.
+
+**Behind:** a unit shows as *Behind* (on the Overview, its unit card and its unit page) when either of these happens:
+- Weekly work from an earlier week is still unticked. This week's items count from Saturday, after Friday's catch-up.
+- An assessment misses a checkpoint: started by the end of its release week (two weeks before it's due if no release date is set), and a draft done (*Final checks*) five days before it's due. Exam units also need every topic rated *OK* or better by SWOTVAC, or a week before exams.
+
+While a unit is behind, the Desk books a 5th deep hour for it on Saturday. The hour disappears once it's cleared.
 
 Import files (.json) can also carry `formulas` (`code`, `name`, `tex`, `where`, `when`, `topic`) and `notes` (`code`, `week`, `title`, `body`).
 
