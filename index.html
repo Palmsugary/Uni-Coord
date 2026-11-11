@@ -565,6 +565,7 @@ function renderCourses(){
         <div style="text-align:right"><div class="grade">${B?B[1]:'—'}</div><div class="num status">${g.pct!=null?g.pct.toFixed(1):'no marks'}</div></div></div>
       <div class="kv"><span>${esc(c.coordinator||'')}</span><span>${esc(c.campus||'')}</span><span class="num">${c.credits} cp</span><span>${open} to do</span><span>${(c.meetings||[]).length} classes a week</span></div>
       <div><div class="label" style="margin-bottom:4px">Weighting marked so far · <span class="num">${g.graded}%</span></div><div class="bar"><i style="width:${Math.min(100,g.graded)}%"></i></div></div>
+      ${(c.content||[]).length?`<details><summary class="label" style="cursor:pointer">Unit content · ${c.content.length} topics</summary><ul style="margin:6px 0 0;padding-left:18px;font-size:13px;display:flex;flex-direction:column;gap:3px">${c.content.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></details>`:''}
       <table class="wtable"><tbody>${g.rows.map(r=>`<tr><td>${esc(r.name)}${r.hurdle?' <span class="pill hurdle">Hurdle</span>':''}</td><td>${r.weight}%</td><td style="width:64px">${r.pct!=null?r.pct.toFixed(1):'—'}</td></tr>`).join('')}</tbody></table>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-act="editCourse" data-id="${c.id}">Edit unit</button><button class="btn" type="button" data-act="addTaskFor" data-id="${c.id}">Add assessment</button></div>
     </div>`;
@@ -754,7 +755,7 @@ function dueFromWeek(a,u){
 function buildProposal(raw,source='import'){
   const p={source,units:[],classes:[],assessments:[],classwork:[],sessions:[],count:0};
   const codes=new Map();
-  const noteCode=(code,info={})=>{code=String(code||'').toUpperCase().replace(/\s/g,'');if(!code)return '';if(!codes.has(code))codes.set(code,{code,name:null,credits:null,coordinator:null});const u=codes.get(code);for(const k of ['name','credits','coordinator'])if(info[k]!=null&&u[k]==null)u[k]=info[k];return code;};
+  const noteCode=(code,info={})=>{code=String(code||'').toUpperCase().replace(/\s/g,'');if(!code)return '';if(!codes.has(code))codes.set(code,{code,name:null,credits:null,coordinator:null,content:null});const u=codes.get(code);if(Array.isArray(info.content)&&info.content.length&&!u.content)u.content=info.content.map(String).filter(Boolean);for(const k of ['name','credits','coordinator'])if(info[k]!=null&&u[k]==null)u[k]=info[k];return code;};
   (raw.units||[]).forEach(u=>noteCode(u.code,u));
   (raw.classes||[]).forEach(c=>{const code=noteCode(c.code);const day=DAYS.indexOf(String(c.day).slice(0,3));if(!code||day<0||!/^\d{1,2}:\d{2}$/.test(c.start||'')||!/^\d{1,2}:\d{2}$/.test(c.end||''))return;
     const u=findUnit(code); if(u&&(u.meetings||[]).some(m=>+m.day===day&&m.start===c.start.padStart(5,'0')))return;
@@ -769,7 +770,7 @@ function buildProposal(raw,source='import'){
   (raw.sessions||[]).forEach(s=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(s.date||'')||!s.start||!s.end)return;const code=noteCode(s.code);
     const u=findUnit(code), t=u&&s.assessmentTitle?state.tasks.find(t=>t.courseId===u.id&&t.title.toLowerCase()===String(s.assessmentTitle).toLowerCase()):null;
     p.sessions.push({on:true,code,date:s.date,start:s.start.padStart(5,'0'),end:s.end.padStart(5,'0'),title:s.title||t?.title||'Study',taskId:t?.id||null});});
-  codes.forEach(u=>{const ex=findUnit(u.code);if(!ex)p.units.push({on:true,...u,name:u.name||u.code});else if((u.name&&ex.name===ex.code)||(u.credits&&!ex.credits)||(u.coordinator&&!ex.coordinator))p.units.push({on:true,existing:ex.id,...u});});
+  codes.forEach(u=>{const ex=findUnit(u.code);if(!ex)p.units.push({on:true,...u,name:u.name||u.code});else if((u.name&&ex.name===ex.code)||(u.credits&&!ex.credits)||(u.coordinator&&!ex.coordinator)||(u.content&&JSON.stringify(u.content)!==JSON.stringify(ex.content||[])))p.units.push({on:true,existing:ex.id,...u});});
   p.count=p.units.length+p.classes.length+p.assessments.length+p.classwork.length+p.sessions.length;
   return p;
 }
@@ -779,7 +780,7 @@ function renderProposal(where='#imPreview'){
   const P=proposal, row=(sec,i,on,main,sub,tag)=>`<label class="prev-row"><input type="checkbox" data-pi="${sec}:${i}"${on?' checked':''}><span>${main}${tag?`<span class="tag ${tag==='Update'?'upd':'new'}">${tag}</span>`:''}${sub?`<br><span class="sub">${sub}</span>`:''}</span></label>`;
   const sec=(title,items,fn)=>items.length?`<div class="prev-sec"><div class="label" style="padding-top:10px">${title} · ${items.length}</div>${items.map(fn).join('')}</div>`:'';
   el.innerHTML=`<div class="panel" style="background:var(--bg)"><div class="panel-head"><h3>${P.source==='plan'?'Suggested study sessions':'Found in your material'}</h3><span class="hint">Untick anything you don’t want.</span></div>
-    ${sec('Units',P.units,(u,i)=>row('units',i,u.on,`<b>${esc(u.code)}</b> ${esc(u.name||'')}`,[u.credits?u.credits+' cp':'',u.coordinator||''].filter(Boolean).join(' · '),u.existing?'Update':'New'))}
+    ${sec('Units',P.units,(u,i)=>row('units',i,u.on,`<b>${esc(u.code)}</b> ${esc(u.name||'')}`,[u.credits?u.credits+' cp':'',u.coordinator||'',u.content?u.content.length+' unit content topics':''].filter(Boolean).join(' · '),u.existing?'Update':'New'))}
     ${sec('Classes',P.classes,(c,i)=>row('classes',i,c.on,`<b>${esc(c.code)}</b> ${esc(c.type)} · ${DAYS[c.day]} ${c.start}–${c.end}`,esc(c.room),'New'))}
     ${sec('Assessments',P.assessments,(a,i)=>row('assessments',i,a.on,`<b>${esc(a.code)}</b> ${esc(a.title)}`,[a.type,a.due?fmt(a.due,{weekday:'short',day:'numeric',month:'short'}):'',a.weight!=null?a.weight+'%':'',a.hurdle?'hurdle':'',a.mark!=null?`mark ${a.mark}/${a.outOf??'?'}`:'',a.stage||'',a.notes||''].filter(Boolean).map(esc).join(' · '),a.existing?'Update':'New'))}
     ${sec('Weekly class work',P.classwork,(w,i)=>row('classwork',i,w.on,`<b>${esc(w.code)}</b> Week ${w.week}: ${esc(w.title)}`,esc(w.kind),'New'))}
@@ -797,7 +798,7 @@ function unitFor(code,info){
 }
 function applyProposal(P){
   let n=0; if(state.example){state.example=false;}
-  P.units.filter(x=>x.on).forEach(x=>{const u=unitFor(x.code,x);if(x.name&&(u.name===u.code||!u.name))u.name=x.name;if(x.credits)u.credits=x.credits;if(x.coordinator&&!u.coordinator)u.coordinator=x.coordinator;n++;});
+  P.units.filter(x=>x.on).forEach(x=>{const u=unitFor(x.code,x);if(x.name&&(u.name===u.code||!u.name))u.name=x.name;if(x.credits)u.credits=x.credits;if(x.coordinator&&!u.coordinator)u.coordinator=x.coordinator;if(x.content)u.content=x.content;n++;});
   P.classes.filter(x=>x.on).forEach(x=>{const u=unitFor(x.code);if(!u)return;u.meetings=u.meetings||[];u.meetings.push({type:x.type,day:x.day,start:x.start,end:x.end,room:x.room});n++;});
   P.assessments.filter(x=>x.on).forEach(x=>{const u=unitFor(x.code);if(!u)return;
     let t=x.existing&&state.tasks.find(t=>t.id===x.existing);
@@ -939,6 +940,7 @@ function courseDialog(c){
       <label class="field" style="grid-column:span 2"><span class="label">Unit name</span><input id="c-name" name="name" required value="${esc(c.name)}" placeholder="Chemistry 1A"></label>
       <label class="field"><span class="label">Credit points</span><input id="c-cr" type="number" min="0" step="0.5" name="credits" value="${c.credits}"></label>
       <label class="field"><span class="label">Unit coordinator</span><input id="c-coord" name="coordinator" value="${esc(c.coordinator)}"></label>
+      <label class="field" style="grid-column:1/-1"><span class="label">Unit content (one topic per line)</span><textarea id="c-content" name="content" style="min-height:90px">${esc((c.content||[]).join('\n'))}</textarea></label>
       <label class="field"><span class="label">Campus</span><input id="c-campus" name="campus" value="${esc(c.campus)}"></label>
       <label class="field"><span class="label">Colour</span><select id="c-color" name="color">${COLORS.map((k,i)=>`<option value="${k}"${k===c.color?' selected':''}>Colour ${i+1}</option>`).join('')}</select></label>
     </div>
@@ -954,7 +956,7 @@ function courseDialog(c){
     const grading=[...form.querySelectorAll('#grades .subrow')].map(r=>({name:r.querySelector('[name="g-name"]').value.trim(),weight:+r.querySelector('[name="g-weight"]').value||0,hurdle:r.querySelector('[name="g-hurdle"]').checked})).filter(g=>g.name);
     const old=course(c.id);
     if(old){(old.grading||[]).forEach((g,i)=>{if(grading[i]&&grading[i].name!==g.name)state.tasks.forEach(t=>{if(t.courseId===c.id&&t.category===g.name)t.category=grading[i].name;});});}
-    Object.assign(c,{code,name,credits:+fd.get('credits')||0,coordinator:fd.get('coordinator').trim(),campus:fd.get('campus').trim(),color:fd.get('color'),meetings,grading});
+    Object.assign(c,{code,name,credits:+fd.get('credits')||0,coordinator:fd.get('coordinator').trim(),content:String(fd.get('content')||'').split('\n').map(t=>t.replace(/^[\s*•-]+/,'').trim()).filter(Boolean),campus:fd.get('campus').trim(),color:fd.get('color'),meetings,grading});
     if(isNew) state.courses.push(c); else state.courses[state.courses.findIndex(x=>x.id===c.id)]=c;
     commit();
   },()=>{state.courses=state.courses.filter(x=>x.id!==c.id);state.tasks=state.tasks.filter(t=>t.courseId!==c.id);state.classwork=state.classwork.filter(x=>x.courseId!==c.id);state.sessions=state.sessions.filter(x=>x.courseId!==c.id);commit();});
