@@ -314,7 +314,7 @@ function semesterWeeks(){
     let kind='teach', label;
     if(ex&&we>=ex){kind='exam';label='E';}
     else if(sw&&we>=sw){kind='swot';label='S';}
-    else if(brS&&brE&&ws<=brE&&we>=brS){kind='brk';label='B';}
+    else if(brS&&brE&&[0,1,2,3,4].filter(i=>{const d=addDays(ws,i);return d>=brS&&d<=brE;}).length>=3){kind='brk';label='B';}
     else {teach++;label=String(teach);}
     out.push({ws,we,kind,label,teach:kind==='teach'?teach:null});
   }
@@ -585,7 +585,7 @@ function renderImport(){
         <div class="drop" id="drop">
           <b>Upload files</b>
           <span class="hint">Timetable calendar file (.ics), screenshots of your timetable or LMS pages, or text files.</span>
-          <input type="file" id="imFiles" multiple accept=".ics,.txt,.csv,.md,image/*">
+          <input type="file" id="imFiles" multiple accept=".ics,.json,.txt,.csv,.md,image/*">
           <div class="files" id="imList"></div>
         </div>
         <label class="field"><span class="label">Or paste text</span><textarea id="imText" placeholder="Paste the assessment table from a unit outline, a weekly reading list, your timetable as text, an LMS announcement…"></textarea></label>
@@ -602,6 +602,7 @@ function renderImport(){
           <li><b>Timetable:</b> export your personal timetable as a calendar (.ics) file from your uni’s timetable system and upload it. Classes are read straight from the file.</li>
           <li><b>Unit outlines:</b> copy the assessment table and weekly schedule out of the PDF and paste it. Claude picks out assessments, weightings, hurdles, due dates and weekly readings (needs an API key in Settings).</li>
           <li><b>Screenshots:</b> a photo of your timetable grid, LMS assessment page or a results page works too.</li>
+          <li><b>Files from Claude:</b> a <code>.json</code> import file Claude prepares for you in chat (for example from a unit’s schedule). Read on this device, no API key needed.</li>
           <li><b>Progress and marks:</b> paste a released-marks page or just type notes like “COMP2123 A2 got 32/40, essay 2 is in drafting”.</li>
         </ol>
         <p class="hint" style="margin:0">Nothing is added until you review it and press Add. Reading text and images sends them to Claude using the API key in Settings. Calendar (.ics) files are read on this device and need no key.</p>
@@ -675,12 +676,14 @@ async function readImport(){
   const out=$('#imBusy'), text=$('#imText').value.trim();
   const ics=pendingFiles.filter(f=>/\.ics$/i.test(f.name)||f.type==='text/calendar');
   const imgs=pendingFiles.filter(f=>f.type.startsWith('image/'));
-  const txts=pendingFiles.filter(f=>!ics.includes(f)&&!imgs.includes(f));
+  const jsons=pendingFiles.filter(f=>/\.json$/i.test(f.name)||f.type==='application/json');
+  const txts=pendingFiles.filter(f=>!ics.includes(f)&&!imgs.includes(f)&&!jsons.includes(f));
   if(!text&&!pendingFiles.length){out.textContent='Choose a file or paste some text first.';return;}
   let raw={units:[],classes:[],assessments:[],classwork:[],sessions:[]};
   const merge=r=>{for(const k in raw) raw[k].push(...(r[k]||[]));};
   try{
     for(const f of ics) merge(icsToRaw(await readText(f)));
+    for(const f of jsons){let j;try{j=JSON.parse(await readText(f));}catch{throw {code:'bad_json'};}if(!j||!['units','classes','assessments','classwork'].some(k=>Array.isArray(j[k])))throw {code:'bad_json'};merge(j);}
     let body=text; for(const f of txts) body+=`\n\n--- ${f.name} ---\n`+await readText(f);
     if(body.trim()||imgs.length){
       if(!sampleFn){out.textContent=ics.length?'':'Reading pasted text and images needs a Claude API key. Add one under Settings & backup, or upload a calendar (.ics) file instead, which works without one.';if(!ics.length)return;}
@@ -695,13 +698,21 @@ async function readImport(){
     proposal=buildProposal(raw);
     out.textContent=proposal.count?'':'Nothing to add was found in that material.';
   }catch(e){
-    out.textContent={cancelled:'Stopped.',not_granted:'Claude rejected the API key. Check it under Settings & backup.',network:'Claude couldn’t be reached. Check your internet connection.',rate_limited:'Too many requests just now. Wait a minute and try again.',prompt_too_large:'That’s too much text at once. Paste one unit outline at a time.',invalid_json:'Claude’s answer couldn’t be read. Try again, or paste less at once.',refused:'Claude declined to read that material.'}[e?.code]||'That couldn’t be read. Check the file and try again.';
+    out.textContent={cancelled:'Stopped.',not_granted:'Claude rejected the API key. Check it under Settings & backup.',network:'Claude couldn’t be reached. Check your internet connection.',rate_limited:'Too many requests just now. Wait a minute and try again.',prompt_too_large:'That’s too much text at once. Paste one unit outline at a time.',invalid_json:'Claude’s answer couldn’t be read. Try again, or paste less at once.',refused:'Claude declined to read that material.',bad_json:'That .json file isn’t a Semester Desk import file. (To restore a full backup, use Settings & backup.)'}[e?.code]||'That couldn’t be read. Check the file and try again.';
   }finally{$('#imRead').disabled=false;$('#imStop').hidden=true;}
   renderProposal();
 }
 
 /* Turn raw extraction into a reviewable proposal */
 const findUnit=code=>state.courses.find(c=>c.code.toUpperCase()===String(code||'').toUpperCase().replace(/\s/g,''));
+// "Week 4", "in class" or "exam week" -> a real date. In-class items land on the unit's first class that week.
+function dueFromWeek(a,u){
+  if(a.week==='exam'||a.examPeriod) return state.term.examStart||null;
+  const mon=teachWeekMonday(+a.week); if(!mon) return null;
+  const days=(u?.meetings||[]).map(m=>+m.day).filter(d=>d>=0&&d<=4).sort();
+  const off=a.inClass&&days.length?days[0]:(Number.isInteger(a.weekday)?a.weekday:4);
+  return iso(addDays(mon,off));
+}
 function buildProposal(raw,source='import'){
   const p={source,units:[],classes:[],assessments:[],classwork:[],sessions:[],count:0};
   const codes=new Map();
@@ -711,6 +722,7 @@ function buildProposal(raw,source='import'){
     const u=findUnit(code); if(u&&(u.meetings||[]).some(m=>+m.day===day&&m.start===c.start.padStart(5,'0')))return;
     p.classes.push({on:true,code,type:CLASS_TYPES.includes(c.type)?c.type:'Class',day,start:c.start.padStart(5,'0'),end:c.end.padStart(5,'0'),room:c.room||''});});
   (raw.assessments||[]).forEach(a=>{const code=noteCode(a.code);if(!a.title)return;
+    if(!a.due) a={...a,due:dueFromWeek(a,findUnit(code))};
     const u=findUnit(code), ex=u&&(state.tasks.find(t=>t.courseId===u.id&&t.title.toLowerCase()===String(a.title).toLowerCase())||(a.due&&state.tasks.find(t=>t.courseId===u.id&&t.due===a.due&&t.type===a.type)));
     if(!ex&&!a.due)return;
     p.assessments.push({on:true,code,existing:ex?.id||null,title:a.title,type:TYPES.includes(a.type)?a.type:'Assignment',due:a.due||null,weight:a.weight??null,hurdle:!!a.hurdle,mark:a.mark??null,outOf:a.outOf??null,stage:STAGES.includes(a.stage)?a.stage:null,notes:a.notes||null});});
