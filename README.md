@@ -9,7 +9,17 @@ It has the same features as the Semester Desk page that was built in Claude:
 - **Weekly work:** a checklist of readings, lecture recordings, and tutorial or lab prep for each week.
 - **Assessments:** due dates and hurdles, with stages from *Not started* to *Marked*.
 - **Units & results:** weightings, marks, HD/D/C/P/N grades, and estimates of your WAM and GPA.
-- **Import:** reads a timetable calendar file (.ics) right on your device.
+- **Import:** reads a timetable calendar file (.ics) or a Canvas course download right on your device.
+
+### Bringing in a unit from Canvas
+
+1. In the unit's Canvas site, download the course content for offline viewing (the download is a folder with `index.html` and a `viewer` folder).
+2. In the Desk, open **Import**, choose `viewer/course-data.js` from that folder, and press **Read it**. No API key is needed.
+3. Untick anything you don't want, then press **Add selected**.
+
+The Desk picks up the unit coordinator, the unit content list, useful links, the assessments with weightings and due dates (from the assessment overview table and Canvas due dates), and each week's videos, worksheets and lecture notes from modules named like `W3 …` or `Week 3 …`. Videos link straight to YouTube.
+
+Canvas releases content week by week, so download the course again each week and import it the same way. Only new items are offered, and assessments are only listed again when something about them changed.
 
 ## Using it
 
