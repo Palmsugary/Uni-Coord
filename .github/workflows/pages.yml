@@ -28,7 +28,11 @@ jobs:
       - name: Collect site files
         run: |
           mkdir _site
-          cp -r index.html manifest.webmanifest sw.js seed.json icons .nojekyll _site/
+          cp -r index.html study-data.js manifest.webmanifest sw.js seed.json icons .nojekyll _site/
+          # Fail the deploy if any file the offline cache expects is missing from the site.
+          for f in $(sed -n '/^const SHELL/,/];/p' sw.js | grep -o "'[^']*'" | tr -d "'" | grep -v '^\./$'); do
+            [ -f "_site/$f" ] || { echo "::error::$f is listed in sw.js but missing from the site"; exit 1; }
+          done
       - name: Copy timetable from calendar link
         env:
           ICAL_URL: ${{ secrets.ICAL_URL }}
